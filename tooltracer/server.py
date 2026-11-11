@@ -1,11 +1,14 @@
-"""Local web server: upload a photo, trace tools, lay them out, download a Gridfinity STL."""
+"""Local app server: trace tools from photos, keep a tool library, build Gridfinity bins."""
 from __future__ import annotations
 
 import importlib.util
 import io
 import json
+import os
+import re
+import subprocess
+import sys
 import uuid
-import webbrowser
 from collections import OrderedDict
 from pathlib import Path
 
@@ -18,6 +21,7 @@ from PIL import Image, ImageOps
 from pydantic import BaseModel, Field
 
 from . import gridfinity, rectify, segment
+from .library import Library, LibraryError, config_dir, default_library_path, load_config, save_config
 
 try:
     import pillow_heif
@@ -33,6 +37,36 @@ MAX_SESSIONS = 6
 app = FastAPI(title="Tooltracer")
 app.mount("/static", StaticFiles(directory=STATIC), name="static")
 _sessions: "OrderedDict[str, dict]" = OrderedDict()
+
+
+class AppState:
+    cfg_dir: Path = config_dir()
+    library: Library | None = None
+    library_pinned = False  # set by --library: use it for this run without touching the saved config
+    window = None  # pywebview window when running as a desktop app
+
+
+STATE = AppState()
+
+
+def init_state(cfg_dir: str | None = None, library: str | None = None) -> None:
+    STATE.cfg_dir = config_dir(cfg_dir)
+    STATE.library, STATE.library_pinned = None, False
+    if library:
+        STATE.library, STATE.library_pinned = Library(library), True
+        return
+    path = load_config(STATE.cfg_dir).get("library_path")
+    if path and Path(path).is_dir():
+        try:
+            STATE.library = Library(path)
+        except LibraryError:
+            STATE.library = None
+
+
+def _lib() -> Library:
+    if STATE.library is None:
+        raise HTTPException(409, "Choose a library folder first.")
+    return STATE.library
 
 
 def _session(sid: str) -> dict:
@@ -56,6 +90,13 @@ def _paper(name: str, custom: list[float] | None) -> tuple[float, float]:
     return rectify.PAPER_SIZES_MM[name]
 
 
+@app.exception_handler(LibraryError)
+async def _library_error(request, exc: LibraryError):
+    from fastapi.responses import JSONResponse
+
+    return JSONResponse({"detail": str(exc)}, status_code=400)
+
+
 @app.get("/", response_class=HTMLResponse)
 def index():
     return FileResponse(STATIC / "index.html", headers={"Cache-Control": "no-store"})
@@ -69,7 +110,13 @@ def config():
         "ai_model_downloaded": segment.MODEL_PATH.exists(),
         "grid": gridfinity.GRID,
         "lip_thickness": gridfinity.LIP_T,
+        "native": STATE.window is not None,
+        "library": STATE.library.summary() if STATE.library else None,
+        "default_library_path": str(default_library_path()),
     }
+
+
+# ---------- photos + tracing ----------
 
 
 @app.post("/api/upload")
@@ -136,6 +183,7 @@ def trace(req: TraceRequest):
     except rectify.RectifyError as e:
         raise HTTPException(422, str(e))
     s["rect"] = rect
+    s["source"] = {"reference": req.reference, "paper": req.paper, "method": req.method}
     tools = []
     if warning is None:
         try:
@@ -150,6 +198,137 @@ def trace(req: TraceRequest):
         "tools": tools,
         "warning": warning,
     }
+
+
+# ---------- library folder ----------
+
+
+class LibraryPath(BaseModel):
+    path: str
+
+
+@app.post("/api/library")
+def set_library(req: LibraryPath):
+    path = req.path.strip().strip('"')
+    if not path:
+        raise HTTPException(400, "Enter a folder path.")
+    STATE.library = Library(path)
+    STATE.library_pinned = False
+    cfg = load_config(STATE.cfg_dir)
+    cfg["library_path"] = str(STATE.library.root)
+    save_config(STATE.cfg_dir, cfg)
+    return STATE.library.summary()
+
+
+@app.post("/api/library/browse")
+def browse_library():
+    """Native folder picker (desktop window only). Returns {"path": str | None}."""
+    if STATE.window is None:
+        raise HTTPException(400, "Folder browsing is only available in the desktop window; type the path instead.")
+    import webview
+
+    start = str(STATE.library.root.parent) if STATE.library else str(default_library_path().parent)
+    result = STATE.window.create_file_dialog(webview.FOLDER_DIALOG, directory=start)
+    return {"path": result[0] if result else None}
+
+
+@app.post("/api/library/reveal")
+def reveal_library():
+    root = str(_lib().root)
+    try:
+        if sys.platform == "win32":
+            os.startfile(root)  # noqa: S606
+        elif sys.platform == "darwin":
+            subprocess.Popen(["open", root])
+        else:
+            subprocess.Popen(["xdg-open", root])
+    except Exception as e:
+        raise HTTPException(500, f"Could not open the folder: {e}")
+    return {"ok": True}
+
+
+# ---------- tools ----------
+
+
+class NewTool(BaseModel):
+    points: list[list[float]]  # outline on the flattened sheet, mm
+    name: str = ""
+    tags: list[str] | str = []
+    thickness: float | None = Field(None, ge=0, le=200)
+
+
+class NewTools(BaseModel):
+    session_id: str
+    tools: list[NewTool]
+
+
+class ToolPatch(BaseModel):
+    name: str | None = None
+    tags: list[str] | str | None = None
+    thickness: float | None = Field(None, ge=0, le=200)
+
+
+@app.get("/api/tools")
+def list_tools():
+    return _lib().list_tools()
+
+
+@app.post("/api/tools")
+def add_tools(req: NewTools):
+    lib = _lib()
+    s = _session(req.session_id)
+    if s["rect"] is None:
+        raise HTTPException(400, "Trace the photo first.")
+    return [lib.add_tool(t.points, s["rect"], t.name, t.tags, t.thickness, s.get("source")) for t in req.tools]
+
+
+@app.patch("/api/tools/{tool_id}")
+def update_tool(tool_id: str, patch: ToolPatch):
+    return _lib().update_tool(tool_id, patch.model_dump(exclude_unset=True))
+
+
+@app.delete("/api/tools/{tool_id}")
+def delete_tool(tool_id: str):
+    _lib().delete_tool(tool_id)
+    return {"ok": True}
+
+
+@app.get("/api/tools/{tool_id}/photo.jpg")
+def tool_photo(tool_id: str):
+    return FileResponse(_lib().tool_photo(tool_id), media_type="image/jpeg")
+
+
+# ---------- saved bins ----------
+
+
+class BinRecord(BaseModel):
+    name: str = ""
+    settings: dict = {}
+    items: list[dict] = []
+
+
+@app.get("/api/bins")
+def list_bins():
+    return _lib().list_bins()
+
+
+@app.post("/api/bins")
+def create_bin(rec: BinRecord):
+    return _lib().save_bin(rec.model_dump())
+
+
+@app.put("/api/bins/{bin_id}")
+def update_bin(bin_id: str, rec: BinRecord):
+    return _lib().save_bin(rec.model_dump(), bin_id)
+
+
+@app.delete("/api/bins/{bin_id}")
+def delete_bin(bin_id: str):
+    _lib().delete_bin(bin_id)
+    return {"ok": True}
+
+
+# ---------- STL ----------
 
 
 class Pocket(BaseModel):
@@ -173,10 +352,10 @@ class BinRequest(BaseModel):
     height_units: int | None = Field(None, ge=1, le=30)
     magnets: bool = False
     lip: bool = False
+    name: str = ""  # optional, used for the file name
 
 
-@app.post("/api/bin")
-def make_bin(req: BinRequest):
+def _build(req: BinRequest):
     solid, info = gridfinity.build_bin(
         req.nx,
         req.ny,
@@ -187,9 +366,16 @@ def make_bin(req: BinRequest):
         req.magnets,
         req.lip,
     )
-    name = f"gridfinity_{req.nx}x{req.ny}x{info['height_units']}_tools{'_lip' if req.lip else ''}.stl"
+    label = re.sub(r"[^A-Za-z0-9 _-]+", "", req.name).strip().replace(" ", "_")[:40] or "tools"
+    name = f"gridfinity_{req.nx}x{req.ny}x{info['height_units']}_{label}{'_lip' if req.lip else ''}.stl"
+    return gridfinity.to_stl(solid), info, name
+
+
+@app.post("/api/bin")
+def make_bin(req: BinRequest):
+    stl, info, name = _build(req)
     return Response(
-        gridfinity.to_stl(solid),
+        stl,
         media_type="model/stl",
         headers={
             "X-Bin-Info": json.dumps(info),
@@ -197,6 +383,33 @@ def make_bin(req: BinRequest):
             "Cache-Control": "no-store",
         },
     )
+
+
+@app.post("/api/bin/save")
+def save_bin_stl(req: BinRequest):
+    """Desktop window only: ask where to save with a native dialog and write the STL there."""
+    if STATE.window is None:
+        raise HTTPException(400, "Only available in the desktop window.")
+    import webview
+
+    stl, info, name = _build(req)
+    cfg = load_config(STATE.cfg_dir)
+    start = cfg.get("last_export_dir") or str(Path.home())
+    result = STATE.window.create_file_dialog(
+        webview.SAVE_DIALOG, directory=start, save_filename=name, file_types=("STL files (*.stl)",)
+    )
+    if not result:
+        return {"path": None, "info": info}
+    path = Path(result if isinstance(result, str) else result[0])
+    if path.suffix.lower() != ".stl":
+        path = path.with_suffix(".stl")
+    path.write_bytes(stl)
+    cfg["last_export_dir"] = str(path.parent)
+    save_config(STATE.cfg_dir, cfg)
+    return {"path": str(path), "info": info}
+
+
+# ---------- marker sheet ----------
 
 
 @app.get("/api/marker/{marker_id}.png")
@@ -233,17 +446,9 @@ bottom is exactly 100 mm. Lay tools in the middle, keep all four markers visible
 
 
 def main():
-    import uvicorn
+    from .launcher import main as launch
 
-    import sys
-
-    host, port = "127.0.0.1", 8765
-    if "--no-browser" not in sys.argv:
-        try:
-            webbrowser.open(f"http://{host}:{port}")
-        except Exception:
-            pass
-    uvicorn.run(app, host=host, port=port)
+    launch()
 
 
 if __name__ == "__main__":

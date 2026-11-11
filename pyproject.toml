@@ -13,13 +13,16 @@ dependencies = [
     "manifold3d>=3.0",
     "pillow>=11.0",
     "pillow-heif>=0.20",
+    "platformdirs>=4.14.5",
+    "pywebview>=5 ; sys_platform != 'linux'",
+    "pywebview[qt]>=5 ; sys_platform == 'linux'",
 ]
 
 [project.optional-dependencies]
 ai = ["onnxruntime>=1.20"]
 
 [project.scripts]
-tooltracer = "tooltracer.server:main"
+tooltracer = "tooltracer.launcher:main"
 
 [build-system]
 requires = ["hatchling"]
