@@ -1,0 +1,29 @@
+[project]
+name = "tooltracer"
+version = "0.1.0"
+description = "Local photo-to-Gridfinity tool tracer: photograph tools on paper, get a printable bin with tool-shaped pockets."
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn>=0.32",
+    "python-multipart>=0.0.12",
+    "opencv-python>=4.10",
+    "numpy>=2.0",
+    "shapely>=2.0",
+    "manifold3d>=3.0",
+    "pillow>=11.0",
+    "pillow-heif>=0.20",
+]
+
+[project.optional-dependencies]
+ai = ["onnxruntime>=1.20"]
+
+[project.scripts]
+tooltracer = "tooltracer.server:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["tooltracer"]

@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tooltracer</title>
+<link rel="stylesheet" href="/static/style.css">
+<script type="importmap">
+{ "imports": { "three": "/static/vendor/three.module.min.js" } }
+</script>
+</head>
+<body>
+<aside id="side">
+  <h1>Tooltracer <span>local photo → Gridfinity</span></h1>
+
+  <section>
+    <h2><b>1</b> Photo</h2>
+    <label class="drop" id="drop">
+      <input type="file" id="file" accept="image/*,.heic,.heif" hidden>
+      <span id="dropText">Drop a photo here or click to choose</span>
+    </label>
+    <p class="hint">Lay tools flat on a sheet of paper and shoot from straight above, as high as you comfortably can.</p>
+
+    <div class="row"><label>Reference</label>
+      <div class="seg" id="reference">
+        <button data-v="paper" class="on">Plain paper</button><button data-v="markers">Marker sheet</button>
+      </div></div>
+    <div class="row"><label for="paper">Sheet size</label>
+      <select id="paper">
+        <option value="letter">US Letter</option><option value="a4">A4</option><option value="legal">US Legal</option>
+        <option value="tabloid">Tabloid (11×17)</option><option value="a3">A3</option><option value="custom">Custom…</option>
+      </select></div>
+    <div class="row" id="customRow" hidden><label>Size (mm)</label>
+      <span class="pair"><input type="number" id="customW" value="300" min="20"> × <input type="number" id="customH" value="400" min="20"></span></div>
+    <p class="hint" id="markerHint" hidden><a id="markerLink" href="/markers?paper=letter" target="_blank">Open the printable marker sheet</a> — print at 100%.</p>
+
+    <div class="row"><label>Detection</label>
+      <div class="seg" id="method">
+        <button data-v="classic" class="on">Classic</button><button data-v="ai">AI</button>
+      </div></div>
+    <p class="hint" id="aiHint" hidden></p>
+    <div class="row"><label for="sensitivity">Sensitivity</label>
+      <input type="range" id="sensitivity" min="0" max="100" value="50"><output id="sensOut">50</output></div>
+    <div class="row"><label for="minArea">Ignore under</label>
+      <span class="unit"><input type="number" id="minArea" value="80" min="0" step="10"> mm²</span></div>
+    <button class="primary" id="traceBtn" disabled>Trace tools</button>
+  </section>
+
+  <section>
+    <h2><b>2</b> Bin</h2>
+    <div class="row"><label>Grid (42 mm)</label>
+      <span class="pair"><input type="number" id="nx" value="2" min="1" max="12"> × <input type="number" id="ny" value="2" min="1" max="12">
+      <button id="fitBtn" title="Fit the grid to the tools and centre them">Fit</button></span></div>
+    <div class="row"><label for="units">Height</label>
+      <select id="units"><option value="0">Auto</option></select></div>
+    <div class="row"><label for="depth">Pocket depth</label>
+      <span class="unit"><input type="number" id="depth" value="10" min="1" max="100" step="0.5"> mm</span></div>
+    <div class="row"><label for="clearance">Clearance</label>
+      <span class="unit"><input type="number" id="clearance" value="0.5" min="0" max="5" step="0.1"> mm</span></div>
+    <div class="row"><label for="magnets">Magnet holes</label><input type="checkbox" id="magnets"></div>
+    <button id="addHole">+ Finger hole</button>
+  </section>
+
+  <section id="selPanel" hidden>
+    <h2><b>•</b> Selected <span id="selName"></span></h2>
+    <div class="row"><label for="selDepth">Depth</label>
+      <span class="unit"><input type="number" id="selDepth" min="1" max="100" step="0.5" placeholder="default"> mm</span></div>
+    <div class="row" id="selRotRow"><label for="selRot">Rotation</label>
+      <span class="pair"><input type="number" id="selRot" step="1"> °
+      <button id="rotL" title="Rotate −90°">⟲</button><button id="rotR" title="Rotate +90° (R)">⟳</button></span></div>
+    <div class="row" id="selDiaRow"><label for="selDia">Diameter</label>
+      <span class="unit"><input type="number" id="selDia" min="4" max="100" step="1"> mm</span></div>
+    <div class="row"><span></span><span class="pair"><button id="dupBtn">Duplicate</button><button id="delBtn" class="danger">Delete</button></span></div>
+  </section>
+
+  <section>
+    <h2><b>3</b> Export</h2>
+    <button class="primary" id="downloadBtn" disabled>Download STL</button>
+    <p class="hint" id="binInfo"></p>
+  </section>
+  <p id="status" role="status"></p>
+</aside>
+
+<main>
+  <nav id="tabs">
+    <button data-tab="photo" class="on">Photo</button>
+    <button data-tab="layout">Layout</button>
+    <button data-tab="preview">3D preview</button>
+  </nav>
+  <div class="pane on" id="pane-photo">
+    <svg id="photoSvg"></svg>
+    <div class="empty" id="photoEmpty">Upload a photo to begin.</div>
+  </div>
+  <div class="pane" id="pane-layout">
+    <svg id="layoutSvg"></svg>
+    <div class="tip">Drag to move · R rotate 90° · arrows nudge 1 mm · Del remove</div>
+  </div>
+  <div class="pane" id="pane-preview"><div id="three"></div><div class="empty" id="previewEmpty">Trace some tools first.</div></div>
+</main>
+<script type="module" src="/static/app.js"></script>
+</body>
+</html>
