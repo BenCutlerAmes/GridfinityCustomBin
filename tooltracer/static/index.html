@@ -10,10 +10,21 @@
 </script>
 </head>
 <body>
-<aside id="side">
-  <h1>Tooltracer <span>local photo → Gridfinity</span></h1>
+<header id="top">
+  <div class="brand">Tooltracer</div>
+  <nav id="modes">
+    <button data-mode="quick" class="on" title="One photo straight to a bin">Quick bin</button>
+    <button data-mode="capture" title="Save tool outlines from a photo into your library">Capture tools</button>
+    <button data-mode="library" title="Browse and edit your saved tools">Library</button>
+    <button data-mode="build" title="Combine library tools into a bin">Build bin</button>
+  </nav>
+  <button id="libBtn" title="Library folder">No library folder</button>
+</header>
 
-  <section>
+<div id="app">
+<aside id="side">
+
+  <section data-modes="quick capture">
     <h2><b>1</b> Photo</h2>
     <label class="drop" id="drop">
       <input type="file" id="file" accept="image/*,.heic,.heif" hidden>
@@ -46,15 +57,52 @@
     <button class="primary" id="traceBtn" disabled>Trace tools</button>
   </section>
 
-  <section>
-    <h2><b>2</b> Bin</h2>
+  <section data-modes="capture">
+    <h2><b>2</b> Name and save</h2>
+    <p class="hint" id="captureEmpty">Trace a photo, then name each tool here and save it to your library.</p>
+    <div id="captureList"></div>
+    <button class="primary" id="saveToolsBtn" disabled>Save to library</button>
+  </section>
+
+  <section data-modes="library">
+    <h2><b>⌕</b> Find</h2>
+    <input type="search" id="libSearch" class="wide" placeholder="Search name or tag">
+    <div id="tagChips" class="chips"></div>
+  </section>
+  <section data-modes="library" id="toolEdit" hidden>
+    <h2><b>•</b> Tool</h2>
+    <div class="row"><label for="teName">Name</label><input type="text" id="teName" class="span" maxlength="80"></div>
+    <div class="row"><label for="teTags">Tags</label><input type="text" id="teTags" class="span" placeholder="comma, separated"></div>
+    <div class="row"><label for="teThick">Thickness</label>
+      <span class="unit"><input type="number" id="teThick" min="0" max="200" step="0.5" placeholder="—"> mm</span></div>
+    <p class="hint" id="teInfo"></p>
+    <div class="row"><span></span><span class="pair"><button id="teAdd">Add to bin</button><button id="teDelete" class="danger">Delete</button></span></div>
+  </section>
+
+  <section data-modes="build">
+    <h2><b>1</b> Bin</h2>
+    <div class="row"><label for="binSelect">Saved bins</label><select id="binSelect"></select></div>
+    <div class="row"><label for="binName">Name</label><input type="text" id="binName" class="span" maxlength="80"></div>
+    <div class="btnrow"><button id="binNew">New</button><button id="binDup">Duplicate</button><button id="binDelete" class="danger">Delete</button></div>
+    <p class="hint" id="binSaved"></p>
+  </section>
+  <section data-modes="build">
+    <h2><b>2</b> Add tools</h2>
+    <input type="search" id="pickSearch" class="wide" placeholder="Search your library">
+    <div id="pickList"></div>
+  </section>
+
+  <section data-modes="quick build">
+    <h2><b id="binStepNo">2</b> <span class="plain">Bin settings</span></h2>
     <div class="row"><label>Grid (42 mm)</label>
       <span class="pair"><input type="number" id="nx" value="2" min="1" max="12"> × <input type="number" id="ny" value="2" min="1" max="12">
       <button id="fitBtn" title="Fit the grid to the tools and centre them">Fit</button></span></div>
     <div class="row"><label for="units">Height</label>
       <select id="units"><option value="0">Auto</option></select></div>
-    <div class="row"><label for="depth">Pocket depth</label>
+    <div class="row"><label for="depth" id="depthLabel">Pocket depth</label>
       <span class="unit"><input type="number" id="depth" value="10" min="1" max="100" step="0.5"> mm</span></div>
+    <div class="row" data-modes="build"><label for="uniform" title="Cut every pocket to the same depth">Same depth</label><input type="checkbox" id="uniform" checked></div>
+    <p class="hint" id="depthHint" data-modes="build" hidden>Each pocket uses its tool's saved thickness, or the depth above if it has none. Select a pocket to override it.</p>
     <div class="row"><label for="clearance">Clearance</label>
       <span class="unit"><input type="number" id="clearance" value="0.5" min="0" max="5" step="0.1"> mm</span></div>
     <div class="row"><label for="magnets">Magnet holes</label><input type="checkbox" id="magnets"></div>
@@ -63,7 +111,7 @@
     <button id="addHole">+ Finger hole</button>
   </section>
 
-  <section id="selPanel" hidden>
+  <section data-modes="quick build" id="selPanel" hidden>
     <h2><b>•</b> Selected <span id="selName"></span></h2>
     <div class="row"><label for="selDepth">Depth</label>
       <span class="unit"><input type="number" id="selDepth" min="1" max="100" step="0.5" placeholder="default"> mm</span></div>
@@ -72,12 +120,12 @@
       <button id="rotL" title="Rotate −90°">⟲</button><button id="rotR" title="Rotate +90° (R)">⟳</button></span></div>
     <div class="row" id="selDiaRow"><label for="selDia">Diameter</label>
       <span class="unit"><input type="number" id="selDia" min="4" max="100" step="1"> mm</span></div>
-    <div class="row"><span></span><span class="pair"><button id="dupBtn">Duplicate</button><button id="delBtn" class="danger">Delete</button></span></div>
+    <div class="row"><span></span><span class="pair"><button id="dupBtn">Duplicate</button><button id="delBtn" class="danger">Remove</button></span></div>
   </section>
 
-  <section>
-    <h2><b>3</b> Export</h2>
-    <button class="primary" id="downloadBtn" disabled>Download STL</button>
+  <section data-modes="quick build">
+    <h2><b id="exportStepNo">3</b> Export</h2>
+    <button class="primary" id="downloadBtn" disabled>Save STL</button>
     <p class="hint" id="binInfo"></p>
   </section>
   <p id="status" role="status"></p>
@@ -85,9 +133,10 @@
 
 <main>
   <nav id="tabs">
-    <button data-tab="photo" class="on">Photo</button>
-    <button data-tab="layout">Layout</button>
-    <button data-tab="preview">3D preview</button>
+    <button data-tab="photo" data-modes="quick capture" class="on">Photo</button>
+    <button data-tab="layout" data-modes="quick build">Layout</button>
+    <button data-tab="preview" data-modes="quick build">3D preview</button>
+    <span id="libCount" data-modes="library"></span>
   </nav>
   <div class="pane on" id="pane-photo">
     <svg id="photoSvg"></svg>
@@ -95,10 +144,28 @@
   </div>
   <div class="pane" id="pane-layout">
     <svg id="layoutSvg"></svg>
+    <div class="empty" id="layoutEmpty" hidden></div>
     <div class="tip">Drag to move · R rotate 90° · arrows nudge 1 mm · Del remove</div>
   </div>
-  <div class="pane" id="pane-preview"><div id="three"></div><div class="empty" id="previewEmpty">Trace some tools first.</div></div>
+  <div class="pane" id="pane-preview"><div id="three"></div><div class="empty" id="previewEmpty">Nothing to preview yet.</div></div>
+  <div class="pane" id="pane-library"><div id="libGrid"></div><div class="empty" id="libEmpty" hidden></div></div>
 </main>
+</div>
+
+<div id="libModal" class="modal" hidden>
+  <div class="dialog" role="dialog" aria-labelledby="libModalTitle">
+    <h3 id="libModalTitle">Choose your library folder</h3>
+    <p>Captured tools and saved bins are kept as plain files in this folder. Pick somewhere you back up or sync
+      (Dropbox, OneDrive, iCloud…) if you want it on more than one computer.</p>
+    <div class="pathRow"><input type="text" id="libPath" spellcheck="false"><button id="libBrowse">Browse…</button></div>
+    <p class="hint" id="libModalInfo"></p>
+    <p class="err" id="libModalErr"></p>
+    <div class="actions">
+      <button id="libReveal">Open folder</button><span class="grow"></span>
+      <button id="libCancel">Cancel</button><button class="primary" id="libUse">Use this folder</button>
+    </div>
+  </div>
+</div>
 <script type="module" src="/static/app.js"></script>
 </body>
 </html>

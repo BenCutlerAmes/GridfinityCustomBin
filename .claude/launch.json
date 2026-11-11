@@ -4,7 +4,7 @@
     {
       "name": "tooltracer",
       "runtimeExecutable": "uv",
-      "runtimeArgs": ["run", "tooltracer", "--no-browser"],
+      "runtimeArgs": ["run", "tooltracer", "--no-browser", "--config-dir", "out/dev-config"],
       "port": 8765
     }
   ]
