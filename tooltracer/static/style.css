@@ -63,6 +63,7 @@ main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 
 /* layout view */
 .bin { fill: #2a2e34; stroke: #555c66; stroke-width: .4; }
+.lip { fill: none; stroke: #454b54; }
 .gridline { stroke: #3b4048; stroke-width: .3; stroke-dasharray: 1.5 1.5; }
 .item { cursor: grab; }
 .item .halo { fill: #0c0d0f; stroke: #0c0d0f; stroke-linejoin: round; }

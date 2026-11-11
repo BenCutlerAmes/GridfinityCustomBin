@@ -5,7 +5,9 @@ import { STLLoader } from '/static/vendor/STLLoader.js';
 const $ = (id) => document.getElementById(id);
 const SVGNS = 'http://www.w3.org/2000/svg';
 const GRID = 42;
-const EDGE = 1.45; // bin gap + minimum wall, mm
+const GAP = 0.25, MIN_WALL = 1.2, LIP_T = 2.6; // mm; keep in sync with gridfinity.py
+const lipOn = () => $('lip').checked;
+const edge = () => GAP + (lipOn() ? LIP_T : MIN_WALL); // how far pockets must stay from the grid edge
 
 function svgEl(name, attrs = {}, parent) {
   const e = document.createElementNS(SVGNS, name);
@@ -240,8 +242,8 @@ function fit() {
   const b = allBounds();
   if (b) {
     const c = clearance();
-    const nx = Math.min(12, Math.max(1, Math.ceil((b[2] - b[0] + 2 * c + 2 * EDGE) / GRID - 1e-9)));
-    const ny = Math.min(12, Math.max(1, Math.ceil((b[3] - b[1] + 2 * c + 2 * EDGE) / GRID - 1e-9)));
+    const nx = Math.min(12, Math.max(1, Math.ceil((b[2] - b[0] + 2 * c + 2 * edge()) / GRID - 1e-9)));
+    const ny = Math.min(12, Math.max(1, Math.ceil((b[3] - b[1] + 2 * c + 2 * edge()) / GRID - 1e-9)));
     $('nx').value = nx; $('ny').value = ny;
     const dx = (nx * GRID) / 2 - (b[0] + b[2]) / 2, dy = (ny * GRID) / 2 - (b[1] + b[3]) / 2;
     for (const it of state.items) { it.x += dx; it.y += dy; }
@@ -257,6 +259,10 @@ function renderLayout() {
   layoutSvg.setAttribute('viewBox', `${-pad} ${-pad} ${W + 2 * pad} ${H + 2 * pad + 4}`);
   layoutSvg.replaceChildren();
   svgEl('rect', { class: 'bin', x: 0.25, y: 0.25, width: W - 0.5, height: H - 0.5, rx: 3.75 }, layoutSvg);
+  if (lipOn()) {
+    const e = edge();
+    svgEl('rect', { class: 'lip', x: e / 2 + GAP / 2, y: e / 2 + GAP / 2, width: W - e - GAP, height: H - e - GAP, rx: 3.75 - LIP_T / 2, 'stroke-width': LIP_T }, layoutSvg);
+  }
   for (let i = 1; i < nx; i++) svgEl('line', { class: 'gridline', x1: i * GRID, y1: 0.25, x2: i * GRID, y2: H - 0.25 }, layoutSvg);
   for (let j = 1; j < ny; j++) svgEl('line', { class: 'gridline', x1: 0.25, y1: j * GRID, x2: W - 0.25, y2: j * GRID }, layoutSvg);
   svgEl('text', { class: 'dim', x: W / 2, y: H + 7 }, layoutSvg).textContent = `${nx} × ${ny} units · ${W - 0.5} × ${H - 0.5} mm`;
@@ -388,6 +394,7 @@ for (const id of ['nx', 'ny']) {
 }
 for (const id of ['depth', 'clearance']) $(id).addEventListener('input', () => { renderLayout(); markDirty(); });
 for (const id of ['units', 'magnets']) $(id).addEventListener('change', markDirty);
+$('lip').addEventListener('change', () => { $('lipHint').hidden = !lipOn(); renderLayout(); markDirty(); });
 $('fitBtn').addEventListener('click', fit);
 for (let u = 2; u <= 12; u++) $('units').add(new Option(`${u}u · ${u * 7} mm`, u));
 
@@ -403,6 +410,7 @@ function binRequest() {
     clearance: clearance(),
     height_units: parseInt($('units').value) || null,
     magnets: $('magnets').checked,
+    lip: lipOn(),
   };
 }
 
@@ -416,7 +424,8 @@ async function buildStl() {
   if (rev === state.rev) { state.stl = stl; state.dirty = false; }
   const [x, y, z] = info.size_mm;
   const notes = [];
-  if (info.clipped) notes.push('⚠ Some pockets reach past the bin wall and were trimmed — move them in or enlarge the grid.');
+  if (info.lip) notes.push('Includes stacking lip.');
+  if (info.clipped) notes.push(`⚠ Some pockets reach past the bin ${info.lip ? 'lip' : 'wall'} and were trimmed — move them in or enlarge the grid.`);
   if (info.raised_height) notes.push(`Height raised to ${info.height_units}u to keep a solid floor under the deepest pocket.`);
   $('binInfo').textContent = `${info.nx}×${info.ny}×${info.height_units}u · ${x} × ${y} × ${z} mm · ${info.volume_cm3} cm³ solid. ${notes.join(' ')}`;
   return stl;
@@ -502,7 +511,8 @@ function showMesh(buffer) {
   const bb = geo.boundingBox, c = bb.getCenter(new THREE.Vector3()), size = bb.getSize(new THREE.Vector3());
   const key = `${size.x}x${size.y}`;
   if (three.framed !== key) {
-    const r = Math.max(size.x, size.y, size.z);
+    // Back off further in a narrow pane so the whole bin stays in frame.
+    const r = Math.max(size.x, size.y, size.z) * Math.max(1, 1.2 / three.camera.aspect);
     three.controls.target.copy(c);
     three.camera.position.set(c.x - r * 0.4, c.y - r * 1.7, c.z + r * 1.9);
     three.framed = key;
