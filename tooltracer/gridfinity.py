@@ -34,6 +34,17 @@ FOOT_PROFILE = [
     (BASE_H, 20.75, CORNER_R),
 ]
 
+# Stacking lip: a rim around the top whose inner face mirrors the foot profile, so another
+# bin's feet drop into it. (height above the bin top, wall thickness at that height)
+LIP_PROFILE = [
+    (0.0, 2.6),
+    (0.7, 1.9),
+    (2.5, 1.9),
+    (4.4, 0.0),
+]
+LIP_T = LIP_PROFILE[0][1]  # rim thickness where it meets the bin top
+LIP_H = 3.9  # the profile is cut off here, leaving a 0.5 mm flat instead of a knife edge
+
 
 def _rounded_rect(cx, cy, hx, hy, r, seg=12) -> np.ndarray:
     pts = []
@@ -55,6 +66,19 @@ def _foot(cx, cy) -> m3.Manifold:
     lower = m3.Manifold.hull_points(np.vstack(rings[:3]))  # chamfer + straight section (convex)
     upper = m3.Manifold.hull_points(np.vstack(rings[2:]))  # top chamfer
     return lower + upper
+
+
+def _lip(width, depth_y, z0) -> m3.Manifold:
+    """Rim around the whole bin, sitting on the top surface at z0."""
+    cx, cy, hx, hy = width / 2, depth_y / 2, width / 2 - GAP, depth_y / 2 - GAP
+    rim = m3.CrossSection([_rounded_rect(cx, cy, hx, hy, CORNER_R)]).extrude(LIP_H).translate((0, 0, z0))
+    rings = []
+    for h, t in LIP_PROFILE:
+        p = _rounded_rect(cx, cy, hx - t, hy - t, max(CORNER_R - t, 0.05))
+        rings.append(np.column_stack([p, np.full(len(p), z0 + h)]))
+    # The opening widens, runs straight, then widens again: two convex pieces.
+    opening = m3.Manifold.hull_points(np.vstack(rings[:3])) + m3.Manifold.hull_points(np.vstack(rings[2:]))
+    return rim - opening
 
 
 def _cross_section(geom) -> m3.CrossSection:
@@ -81,6 +105,7 @@ def build_bin(
     clearance: float = 0.5,
     height_units: int | None = None,
     magnets: bool = False,
+    lip: bool = False,
 ):
     """pockets: [{"points": [[x, y], ...], "depth": mm}]   circles: [{"x", "y", "d", "depth"}]
 
@@ -101,7 +126,9 @@ def build_bin(
     solid = m3.Manifold.batch_boolean([body, *feet], m3.OpType.Add)
 
     # Group cut-outs by depth so overlapping shapes of equal depth merge cleanly.
-    interior = Polygon(_rounded_rect(width / 2, depth_y / 2, width / 2 - GAP - MIN_WALL, depth_y / 2 - GAP - MIN_WALL, CORNER_R - MIN_WALL))
+    # With a lip, pockets must stay inside the rim so they don't cut through it.
+    wall = LIP_T if lip else MIN_WALL
+    interior = Polygon(_rounded_rect(width / 2, depth_y / 2, width / 2 - GAP - wall, depth_y / 2 - GAP - wall, CORNER_R - wall))
     by_depth: dict[float, list] = {}
     clipped = False
     for p in pockets:
@@ -147,13 +174,17 @@ def build_bin(
                         )
     if cuts:
         solid = solid - m3.Manifold.batch_boolean(cuts, m3.OpType.Add)
+    if lip:
+        solid = solid + _lip(width, depth_y, H)
+    total_h = round(H + (LIP_H if lip else 0.0), 2)
 
     info = {
         "nx": nx,
         "ny": ny,
         "height_units": units,
         "height_mm": H,
-        "size_mm": [round(width - 2 * GAP, 2), round(depth_y - 2 * GAP, 2), H],
+        "size_mm": [round(width - 2 * GAP, 2), round(depth_y - 2 * GAP, 2), total_h],
+        "lip": lip,
         "raised_height": units > int(height_units or units),
         "clipped": clipped,
         "volume_cm3": round(solid.volume() / 1000.0, 1),

@@ -68,6 +68,7 @@ def config():
         "ai_installed": importlib.util.find_spec("onnxruntime") is not None,
         "ai_model_downloaded": segment.MODEL_PATH.exists(),
         "grid": gridfinity.GRID,
+        "lip_thickness": gridfinity.LIP_T,
     }
 
 
@@ -171,6 +172,7 @@ class BinRequest(BaseModel):
     clearance: float = Field(0.5, ge=0, le=5)
     height_units: int | None = Field(None, ge=1, le=30)
     magnets: bool = False
+    lip: bool = False
 
 
 @app.post("/api/bin")
@@ -183,8 +185,9 @@ def make_bin(req: BinRequest):
         req.clearance,
         req.height_units,
         req.magnets,
+        req.lip,
     )
-    name = f"gridfinity_{req.nx}x{req.ny}x{info['height_units']}_tools.stl"
+    name = f"gridfinity_{req.nx}x{req.ny}x{info['height_units']}_tools{'_lip' if req.lip else ''}.stl"
     return Response(
         gridfinity.to_stl(solid),
         media_type="model/stl",

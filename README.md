@@ -42,7 +42,11 @@ Opens http://127.0.0.1:8765. (Skip `--extra ai` if you only want classic detecti
 ## Bin
 
 Standard 42 mm Gridfinity footprint with the stepped base profile, 7 mm height units (auto-raised to keep at
-least 1 mm of floor under the deepest pocket), optional 6.5 × 2.4 mm magnet holes. No stacking lip.
+least 1 mm of floor under the deepest pocket), optional 6.5 × 2.4 mm magnet holes.
+
+Optional **stacking lip**: a 3.9 mm rim around the top whose inner face mirrors the foot profile, so another
+Gridfinity bin locks on top. The rim is 2.6 mm thick at its base, so pockets are kept that far from the edge
+(the layout view shows the rim), and tools need to sit flush with or below the bin top for a bin to stack on them.
 
 ## Test without a camera
 
