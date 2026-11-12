@@ -84,6 +84,13 @@ def detect_paper(img: np.ndarray) -> np.ndarray:
     best = max(contours, key=cv2.contourArea)
     if cv2.contourArea(best) < 0.08 * small.shape[0] * small.shape[1]:
         raise RectifyError("Could not find the sheet of paper. Drag the corner handles onto it manually.")
+    # A frame with no visible sheet edges (blank wall, or paper filling the whole photo) thresholds
+    # to "everything is paper"; there is nothing to take scale from.
+    inside = np.zeros_like(bright)
+    cv2.drawContours(inside, [best], -1, 255, -1)
+    outside = inside == 0
+    if outside.mean() < 0.03 or float(light[inside > 0].mean()) - float(light[outside].mean()) < 15:
+        raise RectifyError("Could not see the edges of the sheet. Keep the whole sheet in frame on a darker surface.")
     hull = cv2.convexHull(best)  # tools hanging over the paper edge only dent it; the hull ignores dents
     quad = None
     peri = cv2.arcLength(hull, True)

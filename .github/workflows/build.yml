@@ -1,0 +1,176 @@
+# Shared by "Build check" (pull requests) and "Release builds" (manual).
+# For each of Windows, macOS and Linux it:
+#   1. runs the source test suite
+#   2. builds the app
+#   3. tests the built app: real photo-to-STL flow over its API, AI tracing, and the desktop window
+#   4. builds the installer, installs it, upgrades an older install with it, and tests the installed copy
+# Installers are uploaded as "tooltracer-<os>"; logs, results and a window screenshot as "test-output-<os>".
+name: Build and test apps
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        description: "Version stamped into the apps (X.Y.Z)"
+        required: true
+        type: string
+
+jobs:
+  build:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: windows, os: windows-latest, exe: "dist/Tooltracer/Tooltracer.exe" }
+          - { name: macos, os: macos-latest, exe: "dist/Tooltracer.app/Contents/MacOS/Tooltracer" }
+          # An older Ubuntu so the build runs on more Linux versions (glibc is forward-compatible only).
+          - { name: linux, os: ubuntu-22.04, exe: "dist/Tooltracer/Tooltracer" }
+    defaults:
+      run:
+        shell: bash
+    env:
+      VERSION: ${{ inputs.version }}
+      # Linux runners have no display: give the window test a virtual one.
+      XVFB: ${{ matrix.name == 'linux' && 'xvfb-run -a' || '' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v6
+
+      - name: Linux system libraries (Qt window backend, virtual display)
+        if: matrix.name == 'linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libegl1 libgl1 libnss3 libasound2 libxkbcommon-x11-0 libxcb-cursor0 \
+            libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-render-util0 libxcb-shape0 libxcb-xinerama0 \
+            libxcomposite1 libxdamage1 libxrandr2 libxtst6 libxkbfile1 xvfb imagemagick
+
+      - name: Stamp version
+        run: echo "__version__ = \"$VERSION\"" > tooltracer/_version.py
+
+      - name: Install dependencies
+        run: uv sync --extra ai --group build --group dev
+
+      - name: Source tests
+        run: uv run --no-sync pytest -q
+
+      - name: Build app
+        run: uv run --no-sync pyinstaller packaging/tooltracer.spec --noconfirm
+
+      - name: Test the built app (API flow, AI tracing, desktop window)
+        run: |
+          $XVFB uv run --no-sync python packaging/test_packaged.py --exe "${{ matrix.exe }}" \
+            --version "$VERSION" --ai --window --out test-output/app
+
+      # ---------- Windows: installer, upgrade over an older install ----------
+      - name: Package and test installer (Windows)
+        if: matrix.name == 'windows'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          function Check($ok, $msg) { if (-not $ok) { Write-Host "::error::$msg"; exit 1 } else { Write-Host "  ok  $msg" } }
+          function Install($setup, $extra) {
+            $p = Start-Process $setup -ArgumentList (@("/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART") + $extra) -Wait -PassThru
+            Check ($p.ExitCode -eq 0) "installer $(Split-Path $setup -Leaf) exits 0 (got $($p.ExitCode))"
+          }
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) { choco install innosetup -y --no-progress }
+
+          & $iscc "/DAppVersion=$env:VERSION" packaging\windows\tooltracer.iss
+          Check ($LASTEXITCODE -eq 0) "installer compiles"
+          # The same app wrapped as an older version, to upgrade from.
+          & $iscc "/DAppVersion=0.0.0" "/O$env:RUNNER_TEMP\old" "/FTooltracer-old-setup" packaging\windows\tooltracer.iss
+          Check ($LASTEXITCODE -eq 0) "older-version installer compiles"
+
+          $dir = "$env:RUNNER_TEMP\Tooltracer Install"
+          Install "$env:RUNNER_TEMP\old\Tooltracer-old-setup.exe" @("/DIR=`"$dir`"")
+          Check (Test-Path "$dir\Tooltracer.exe") "old version installed"
+          Set-Content "$dir\_internal\stale-from-old-version.txt" "x"
+
+          # No /DIR this time: the new installer must find the existing install by itself.
+          Install "dist\Tooltracer-$env:VERSION-windows-setup.exe" @()
+          Check (Test-Path "$dir\Tooltracer.exe") "upgrade went into the existing install folder"
+          Check (-not (Test-Path "$dir\_internal\stale-from-old-version.txt")) "upgrade removed the old version's files"
+          $entries = @(Get-ChildItem "HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall" |
+            Where-Object { $_.GetValue("DisplayName") -like "Tooltracer*" })
+          Check ($entries.Count -eq 1) "exactly one Tooltracer entry in Installed apps (found $($entries.Count))"
+          Check ($entries[0].GetValue("DisplayVersion") -eq $env:VERSION) "installed version is $env:VERSION (got $($entries[0].GetValue('DisplayVersion')))"
+
+          uv run --no-sync python packaging/test_packaged.py --exe "$dir\Tooltracer.exe" --version $env:VERSION --out test-output/installed
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+          Compress-Archive -Path dist\Tooltracer -DestinationPath "dist\Tooltracer-$env:VERSION-windows-portable.zip"
+          New-Item -ItemType Directory release | Out-Null
+          Move-Item "dist\Tooltracer-$env:VERSION-windows-setup.exe", "dist\Tooltracer-$env:VERSION-windows-portable.zip" release\
+
+      # ---------- macOS: disk image, install by copying to Applications, replace to upgrade ----------
+      - name: Package and test disk image (macOS)
+        if: matrix.name == 'macos'
+        run: |
+          check() { if "$@"; then echo "  ok  $*"; else echo "::error::failed: $*"; exit 1; fi; }
+          mkdir -p dmgroot release
+          cp -R dist/Tooltracer.app dmgroot/
+          ln -s /Applications dmgroot/Applications
+          DMG="release/Tooltracer-$VERSION-macos-$(uname -m).dmg"
+          hdiutil create -volname "Tooltracer $VERSION" -srcfolder dmgroot -ov -format UDZO "$DMG"
+
+          MNT="$RUNNER_TEMP/tt-dmg"; APPS="$RUNNER_TEMP/Applications"
+          mkdir -p "$MNT" "$APPS/Tooltracer.app/Contents"
+          touch "$APPS/Tooltracer.app/Contents/stale-from-old-version.txt"   # stands in for a previous install
+          hdiutil attach "$DMG" -mountpoint "$MNT" -nobrowse -quiet
+          check test -d "$MNT/Tooltracer.app"
+          check test -L "$MNT/Applications"
+          rm -rf "$APPS/Tooltracer.app" && cp -R "$MNT/Tooltracer.app" "$APPS/"   # what Finder's "Replace" does
+          hdiutil detach "$MNT" -quiet
+          check test ! -e "$APPS/Tooltracer.app/Contents/stale-from-old-version.txt"
+          PLIST_VERSION=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$APPS/Tooltracer.app/Contents/Info.plist")
+          check test "$PLIST_VERSION" = "$VERSION"
+          codesign --verify --deep "$APPS/Tooltracer.app" || echo "::warning::App is not validly ad-hoc signed; Apple Silicon Macs may refuse to open it."
+
+          uv run --no-sync python packaging/test_packaged.py --exe "$APPS/Tooltracer.app/Contents/MacOS/Tooltracer" \
+            --version "$VERSION" --out test-output/installed
+
+      # ---------- Linux: .deb, package upgrade over an older install ----------
+      - name: Package and test .deb (Linux)
+        if: matrix.name == 'linux'
+        run: |
+          check() { if "$@"; then echo "  ok  $*"; else echo "::error::failed: $*"; exit 1; fi; }
+          mkdir -p release
+          tar -C dist -czf "release/Tooltracer-$VERSION-linux-x86_64.tar.gz" Tooltracer
+          bash packaging/linux/build_deb.sh 0.0.0      # the same app as an older version, to upgrade from
+          bash packaging/linux/build_deb.sh "$VERSION"
+
+          sudo apt-get install -y "./dist/tooltracer_0.0.0_amd64.deb"
+          check test "$(dpkg-query -W -f='${Version}' tooltracer)" = "0.0.0"
+          sudo apt-get install -y "./dist/tooltracer_${VERSION}_amd64.deb"
+          check test "$(dpkg-query -W -f='${Version}' tooltracer)" = "$VERSION"
+          check test "$(dpkg-query -W -f='${Status}' tooltracer)" = "install ok installed"
+          check test -x /usr/bin/tooltracer
+          check test -f /usr/share/applications/tooltracer.desktop
+
+          uv run --no-sync python packaging/test_packaged.py --exe /opt/tooltracer/Tooltracer \
+            --version "$VERSION" --out test-output/installed
+          mv "dist/tooltracer_${VERSION}_amd64.deb" release/
+
+      - name: Upload installers
+        uses: actions/upload-artifact@v4
+        with:
+          name: tooltracer-${{ matrix.name }}
+          path: release/*
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload test results (logs, window screenshot)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-output-${{ matrix.name }}
+          path: |
+            test-output/**/*.json
+            test-output/**/*.png
+            test-output/**/*.log
+          if-no-files-found: ignore
+          retention-days: 7

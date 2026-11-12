@@ -27,8 +27,35 @@ Releases are built by GitHub Actions for Windows, macOS and Linux, on demand:
 1. On GitHub open **Actions → Release builds → Run workflow**.
 2. Enter the version (e.g. `0.3.0`) and run it. Pushing a tag does the same: `git tag v0.3.0 && git push origin v0.3.0`.
 
-The workflow builds each app, starts it once to check it runs and reports the right version, then publishes a
-GitHub Release `v<version>` with all the files. A version that already exists is refused rather than overwritten.
+The workflow builds and tests each app (see below) and only if all three pass publishes a GitHub Release
+`v<version>` with all the files. A version that already exists is refused rather than overwritten.
+
+## Automated tests
+
+Every pull request runs **Build check** (again on each new commit pushed to it), which does everything a
+release does except publish, so a branch that would break a build is caught before it is merged. On Windows, macOS and Linux it:
+
+1. runs the source tests (`tests/`): photo → outline accuracy, bin geometry, the library, the HTTP API;
+2. builds the app;
+3. tests the built app from the outside (`packaging/test_packaged.py`): uploads a synthetic photo with
+   known tool sizes, traces it (classic and AI), saves tools and a bin to a library, exports an STL, then opens
+   the real desktop window and checks the UI loaded in it;
+4. builds the installer, installs an older version, upgrades it with the new one, checks the upgrade replaced
+   it cleanly, and re-tests the installed copy.
+
+Installers from a run are under the run's *Artifacts* as `tooltracer-<os>`; logs, results and a screenshot of
+the window as `test-output-<os>`. macOS runners are billed at a higher rate on private repositories, so each
+run uses a noticeable share of the free Actions minutes.
+
+Run the same tests locally:
+
+```bash
+uv run --group dev pytest
+```
+
+```bash
+uv run --group dev python packaging/test_packaged.py --exe dist/Tooltracer/Tooltracer.exe --ai --window
+```
 
 To build the app for your own system only:
 
@@ -135,4 +162,5 @@ Generates a synthetic photo with known-size tools (add `--markers` for the marke
 - `tooltracer/gridfinity.py` – bin solid (manifold3d) and STL export
 - `tooltracer/static/` – the UI (three.js vendored, MIT)
 - `packaging/` – PyInstaller spec and the Windows / Linux installer scripts
-- `.github/workflows/release.yml` – the on-demand release build
+- `tests/` – source tests; `packaging/test_packaged.py` – tests for a built or installed app
+- `.github/workflows/` – `build.yml` (shared build + tests), `ci.yml` (branch build check), `release.yml` (manual release)
