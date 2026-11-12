@@ -6,18 +6,31 @@ Two detectors:
 """
 from __future__ import annotations
 
+import sys
 import urllib.request
 from pathlib import Path
 
 import cv2
 import numpy as np
+import platformdirs
 from shapely.geometry import Polygon
 from shapely.validation import make_valid
 
 from .rectify import PX_PER_MM
 
 MODEL_URL = "https://github.com/danielgatis/rembg/releases/download/v0.0.0/isnet-general-use.onnx"
-MODEL_PATH = Path(__file__).resolve().parent.parent / "models" / "isnet-general-use.onnx"
+MODEL_NAME = "isnet-general-use.onnx"
+
+
+def _model_path() -> Path:
+    """Running from source: models/ beside the code. Packaged app: the per-user data folder,
+    because the install folder may be read-only and is replaced on upgrade."""
+    if getattr(sys, "frozen", False):
+        return Path(platformdirs.user_data_dir("Tooltracer", False)) / "models" / MODEL_NAME
+    return Path(__file__).resolve().parent.parent / "models" / MODEL_NAME
+
+
+MODEL_PATH = _model_path()
 EDGE_MARGIN_MM = 1.5
 
 _session = None
@@ -79,7 +92,15 @@ def _load_session():
         MODEL_PATH.parent.mkdir(parents=True, exist_ok=True)
         tmp = MODEL_PATH.with_suffix(".part")
         try:
-            urllib.request.urlretrieve(MODEL_URL, tmp)
+            # Use the bundled CA certificates: a packaged app cannot rely on the system store.
+            import shutil
+            import ssl
+
+            import certifi
+
+            ctx = ssl.create_default_context(cafile=certifi.where())
+            with urllib.request.urlopen(MODEL_URL, context=ctx, timeout=60) as resp, open(tmp, "wb") as f:
+                shutil.copyfileobj(resp, f, 1 << 20)
             tmp.replace(MODEL_PATH)
         except Exception as e:
             tmp.unlink(missing_ok=True)

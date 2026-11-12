@@ -191,6 +191,7 @@ let pendingMode = null;
 async function refreshConfig() {
   try { state.cfg = await getJson('/api/config'); } catch { return; }
   const lib = state.cfg.library;
+  $('appVersion').textContent = state.cfg.version.includes('dev') ? 'dev' : `v${state.cfg.version}`;
   $('libBtn').textContent = lib ? `Library: ${lib.name} · ${plural(lib.tools, 'tool')}` : 'Choose library folder…';
   $('libBtn').classList.toggle('unset', !lib);
   $('libBtn').title = lib ? lib.path : 'Choose where your tool library is kept';

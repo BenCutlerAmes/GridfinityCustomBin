@@ -20,7 +20,7 @@ from fastapi.staticfiles import StaticFiles
 from PIL import Image, ImageOps
 from pydantic import BaseModel, Field
 
-from . import gridfinity, rectify, segment
+from . import __version__, gridfinity, rectify, segment
 from .library import Library, LibraryError, config_dir, default_library_path, load_config, save_config
 
 try:
@@ -105,6 +105,7 @@ def index():
 @app.get("/api/config")
 def config():
     return {
+        "version": __version__,
         "papers": {k: list(v) for k, v in rectify.PAPER_SIZES_MM.items()},
         "ai_installed": importlib.util.find_spec("onnxruntime") is not None,
         "ai_model_downloaded": segment.MODEL_PATH.exists(),

@@ -1,0 +1,163 @@
+# Build the Windows, macOS and Linux apps and publish them as a GitHub Release.
+#
+# Run it whenever you want a release:
+#   GitHub -> Actions -> "Release builds" -> Run workflow -> enter a version (e.g. 0.3.0)
+# or push a tag:  git tag v0.3.0 && git push origin v0.3.0
+#
+# Every release is kept under Releases; a version that already exists is refused, never replaced.
+name: Release builds
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to release (e.g. 0.3.0). Must be higher than the last one."
+        required: true
+        type: string
+      prerelease:
+        description: "Mark as a pre-release (not shown as the latest version)"
+        type: boolean
+        default: false
+  push:
+    tags: ["v*.*.*"]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    name: Check version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+    steps:
+      - id: v
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ "$GITHUB_EVENT_NAME" = "push" ]; then V="${GITHUB_REF_NAME#v}"; else V="${INPUT_VERSION#v}"; fi
+          if ! echo "$V" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::error::Version must look like 1.2.3 (got '$V')."; exit 1
+          fi
+          if gh release view "v$V" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "::error::Release v$V already exists. Existing releases are never overwritten - pick a new version."; exit 1
+          fi
+          echo "version=$V" >> "$GITHUB_OUTPUT"
+          echo "Releasing version $V"
+
+  build:
+    name: Build (${{ matrix.name }})
+    needs: prepare
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: windows, os: windows-latest, exe: "dist/Tooltracer/Tooltracer.exe" }
+          - { name: macos, os: macos-latest, exe: "dist/Tooltracer.app/Contents/MacOS/Tooltracer" }
+          # An older Ubuntu so the build runs on more Linux versions (glibc is forward-compatible only).
+          - { name: linux, os: ubuntu-22.04, exe: "dist/Tooltracer/Tooltracer" }
+    defaults:
+      run:
+        shell: bash
+    env:
+      VERSION: ${{ needs.prepare.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v6
+
+      - name: Linux system libraries (Qt window backend)
+        if: matrix.name == 'linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libegl1 libgl1 libnss3 libasound2 libxkbcommon-x11-0 libxcb-cursor0 \
+            libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-render-util0 libxcb-shape0 libxcb-xinerama0 \
+            libxcomposite1 libxdamage1 libxrandr2 libxtst6 libxkbfile1
+
+      - name: Stamp version
+        run: echo "__version__ = \"$VERSION\"" > tooltracer/_version.py
+
+      - name: Install dependencies
+        run: uv sync --extra ai --group build
+
+      - name: Build app
+        run: uv run pyinstaller packaging/tooltracer.spec --noconfirm
+
+      - name: Smoke test the packaged app
+        run: |
+          "${{ matrix.exe }}" --no-browser --port 8799 --config-dir "$RUNNER_TEMP/tt-config" &
+          PID=$!
+          for i in $(seq 1 60); do
+            if OUT=$(curl -fsS http://127.0.0.1:8799/api/config 2>/dev/null); then break; fi
+            sleep 1
+          done
+          kill $PID 2>/dev/null || true
+          echo "$OUT"
+          echo "$OUT" | grep -q "\"version\":\"$VERSION\"" || { echo "::error::Packaged app did not start or reports the wrong version."; cat "$RUNNER_TEMP/tt-config/tooltracer.log" 2>/dev/null; exit 1; }
+
+      - name: Package (Windows installer + portable zip)
+        if: matrix.name == 'windows'
+        shell: pwsh
+        run: |
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) { choco install innosetup -y --no-progress }
+          & $iscc "/DAppVersion=$env:VERSION" packaging\windows\tooltracer.iss
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Compress-Archive -Path dist\Tooltracer -DestinationPath "dist\Tooltracer-$env:VERSION-windows-portable.zip"
+          New-Item -ItemType Directory release | Out-Null
+          Move-Item "dist\Tooltracer-$env:VERSION-windows-setup.exe", "dist\Tooltracer-$env:VERSION-windows-portable.zip" release\
+
+      - name: Package (macOS disk image)
+        if: matrix.name == 'macos'
+        run: |
+          mkdir -p dmgroot release
+          cp -R dist/Tooltracer.app dmgroot/
+          ln -s /Applications dmgroot/Applications
+          hdiutil create -volname "Tooltracer $VERSION" -srcfolder dmgroot -ov -format UDZO \
+            "release/Tooltracer-$VERSION-macos-$(uname -m).dmg"
+
+      - name: Package (Linux .deb + tarball)
+        if: matrix.name == 'linux'
+        run: |
+          mkdir -p release
+          tar -C dist -czf "release/Tooltracer-$VERSION-linux-x86_64.tar.gz" Tooltracer
+          bash packaging/linux/build_deb.sh "$VERSION"
+          mv "dist/tooltracer_${VERSION}_amd64.deb" release/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tooltracer-${{ matrix.name }}
+          path: release/*
+          if-no-files-found: error
+          retention-days: 7
+
+  release:
+    name: Publish release
+    needs: [prepare, build]
+    runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ needs.prepare.outputs.version }}
+      GH_TOKEN: ${{ github.token }}
+      PRERELEASE: ${{ inputs.prerelease }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: release
+          merge-multiple: true
+
+      - name: Create GitHub Release
+        run: |
+          ls -lh release
+          FLAGS=""
+          if [ "$PRERELEASE" = "true" ]; then FLAGS="--prerelease"; fi
+          gh release create "v$VERSION" release/* \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
+            --title "Tooltracer $VERSION" \
+            --generate-notes $FLAGS

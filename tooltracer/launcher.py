@@ -3,13 +3,14 @@ from __future__ import annotations
 
 import argparse
 import socket
+import sys
 import threading
 import time
 import webbrowser
 
 import uvicorn
 
-from . import server
+from . import __version__, server
 
 HOST = "127.0.0.1"
 
@@ -18,6 +19,22 @@ def _free_port() -> int:
     with socket.socket() as s:
         s.bind((HOST, 0))
         return s.getsockname()[1]
+
+
+def _ensure_streams() -> None:
+    """A packaged windowed app has no console: stdout/stderr are None, which breaks logging.
+    Send them to a log file in the settings folder instead (also handy for bug reports)."""
+    if sys.stdout is not None and sys.stderr is not None:
+        return
+    try:
+        server.STATE.cfg_dir.mkdir(parents=True, exist_ok=True)
+        log = open(server.STATE.cfg_dir / "tooltracer.log", "w", encoding="utf-8", buffering=1)
+    except OSError:
+        import os
+
+        log = open(os.devnull, "w")
+    sys.stdout = sys.stdout or log
+    sys.stderr = sys.stderr or log
 
 
 def _serve_in_thread(port: int) -> uvicorn.Server:
@@ -53,6 +70,7 @@ def run_window(on_ready=None) -> bool:
 
 def main(argv=None):
     ap = argparse.ArgumentParser(prog="tooltracer", description="Photo-to-Gridfinity tool tracer")
+    ap.add_argument("--version", action="version", version=f"Tooltracer {__version__}")
     ap.add_argument("--browser", action="store_true", help="open in the default browser instead of a desktop window")
     ap.add_argument("--no-browser", action="store_true", help="only run the local server (implies browser mode)")
     ap.add_argument("--port", type=int, default=8765, help="port for browser mode (default 8765)")
@@ -61,6 +79,8 @@ def main(argv=None):
     args = ap.parse_args(argv)
 
     server.init_state(args.config_dir, args.library)
+    _ensure_streams()
+    print(f"Tooltracer {__version__}")
 
     if not (args.browser or args.no_browser) and run_window():
         return

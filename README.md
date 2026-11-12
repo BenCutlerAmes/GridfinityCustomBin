@@ -3,7 +3,43 @@
 Photograph tools on a sheet of paper, build up a library of their outlines, and generate 3D-printable
 Gridfinity bins with tool-shaped pockets. Everything runs on your machine; nothing is uploaded anywhere.
 
-## Run
+## Install
+
+Download the latest build for your system from the repository's **Releases** page. Every past version stays
+listed there.
+
+| System | File | Install / upgrade |
+| --- | --- | --- |
+| Windows | `Tooltracer-<version>-windows-setup.exe` | Run it. Running a newer one upgrades the installed copy in place. |
+| Windows (no install) | `Tooltracer-<version>-windows-portable.zip` | Unzip anywhere and run `Tooltracer.exe`. |
+| macOS (Apple Silicon) | `Tooltracer-<version>-macos-arm64.dmg` | Drag Tooltracer to Applications; choose *Replace* to upgrade. |
+| Debian / Ubuntu | `tooltracer_<version>_amd64.deb` | `sudo apt install ./tooltracer_<version>_amd64.deb` (also upgrades). |
+| Other Linux | `Tooltracer-<version>-linux-x86_64.tar.gz` | Unpack and run `Tooltracer/Tooltracer`. |
+
+Upgrading never touches your data: the tool library is in the folder you chose and settings are in your user
+profile, both outside the program folder. The builds are not code-signed, so Windows SmartScreen
+("More info → Run anyway") and macOS Gatekeeper (right-click the app → Open) warn on first launch.
+
+## Releasing a new version
+
+Releases are built by GitHub Actions for Windows, macOS and Linux, on demand:
+
+1. On GitHub open **Actions → Release builds → Run workflow**.
+2. Enter the version (e.g. `0.3.0`) and run it. Pushing a tag does the same: `git tag v0.3.0 && git push origin v0.3.0`.
+
+The workflow builds each app, starts it once to check it runs and reports the right version, then publishes a
+GitHub Release `v<version>` with all the files. A version that already exists is refused rather than overwritten.
+
+To build the app for your own system only:
+
+```bash
+uv run --group build pyinstaller packaging/tooltracer.spec --noconfirm
+```
+
+The result is in `dist/`. The Windows installer is then made with Inno Setup
+(`iscc /DAppVersion=0.3.0 packaging\windows\tooltracer.iss`), the `.deb` with `packaging/linux/build_deb.sh 0.3.0`.
+
+## Run from source
 
 ```bash
 uv sync --extra ai
@@ -98,3 +134,5 @@ Generates a synthetic photo with known-size tools (add `--markers` for the marke
 - `tooltracer/segment.py` – classic and AI masks → smoothed outlines in mm
 - `tooltracer/gridfinity.py` – bin solid (manifold3d) and STL export
 - `tooltracer/static/` – the UI (three.js vendored, MIT)
+- `packaging/` – PyInstaller spec and the Windows / Linux installer scripts
+- `.github/workflows/release.yml` – the on-demand release build
