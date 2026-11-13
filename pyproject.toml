@@ -1,5 +1,5 @@
 [project]
-name = "tooltracer"
+name = "gridfinity-custom-bin"
 dynamic = ["version"]
 description = "Local photo-to-Gridfinity tool tracer: photograph tools on paper, get a printable bin with tool-shaped pockets."
 requires-python = ">=3.12,<3.13"
@@ -23,17 +23,17 @@ dependencies = [
 ai = ["onnxruntime>=1.20"]
 
 [project.scripts]
-tooltracer = "tooltracer.launcher:main"
+gridfinity-custom-bin = "gridfinity_custom_bin.launcher:main"
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.version]
-path = "tooltracer/_version.py"
+path = "gridfinity_custom_bin/_version.py"
 
 [tool.hatch.build.targets.wheel]
-packages = ["tooltracer"]
+packages = ["gridfinity_custom_bin"]
 
 [dependency-groups]
 build = ["pyinstaller>=6.10"]

@@ -11,7 +11,7 @@ import cv2
 import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from tooltracer.rectify import marker_positions_mm, _aruco_dict  # noqa: E402
+from gridfinity_custom_bin.rectify import marker_positions_mm, _aruco_dict  # noqa: E402
 
 S = 8  # px per mm on the flat sheet
 W_MM, H_MM = 215.9, 279.4

@@ -34,7 +34,7 @@ STATIC = Path(__file__).parent / "static"
 MAX_PHOTO_PX = 3000
 MAX_SESSIONS = 6
 
-app = FastAPI(title="Tooltracer")
+app = FastAPI(title="Gridfinity Custom Bin")
 app.mount("/static", StaticFiles(directory=STATIC), name="static")
 _sessions: "OrderedDict[str, dict]" = OrderedDict()
 
@@ -467,7 +467,7 @@ def marker_sheet(paper: str = "letter"):
         for i, q in rectify.marker_positions_mm(w, h).items()
     )
     s = rectify.MARKER_SIZE_MM
-    return f"""<!doctype html><html><head><meta charset="utf-8"><title>Tooltracer marker sheet ({paper})</title>
+    return f"""<!doctype html><html><head><meta charset="utf-8"><title>Gridfinity Custom Bin marker sheet ({paper})</title>
 <style>
 @page {{ size: {w}mm {h}mm; margin: 0; }}
 html, body {{ margin: 0; padding: 0; }}
@@ -481,7 +481,7 @@ html, body {{ margin: 0; padding: 0; }}
 </style></head><body>
 <div class="help">Print this page at <b>100% / Actual size</b> (not "Fit to page"), margins off. Then check the ruler at the
 bottom is exactly 100 mm. Lay tools in the middle, keep all four markers visible. <button onclick="print()">Print</button></div>
-<div class="page">{imgs}<div class="ruler"></div><div class="note">100 mm check ruler &middot; Tooltracer marker sheet &middot; {paper}</div></div>
+<div class="page">{imgs}<div class="ruler"></div><div class="note">100 mm check ruler &middot; Gridfinity Custom Bin marker sheet &middot; {paper}</div></div>
 </body></html>"""
 
 

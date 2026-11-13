@@ -11,6 +11,6 @@ labels: bug
 **Steps to reproduce** (a photo that shows the problem helps — crop out anything private)
 
 **Environment**
-- Tooltracer version (shown next to the name, top-left):
+- Gridfinity Custom Bin version (shown next to the name, top-left):
 - OS:
 - Detection mode (Classic / AI) and reference (plain paper / marker sheet):

@@ -1,9 +1,9 @@
-# Tooltracer
+# Gridfinity Custom Bin
 
 **Photograph your tools on a sheet of paper and get a 3D-printable [Gridfinity](https://gridfinity.xyz) bin with
 tool-shaped pockets.**
 
-Lay tools on a sheet of paper, take a photo from above, and Tooltracer traces each outline at true size, builds up
+Lay tools on a sheet of paper, take a photo from above, and Gridfinity Custom Bin traces each outline at true size, builds up
 a searchable library of your tools, and generates a bin (STL) with a pocket for each one. Everything runs on your
 own computer; nothing is uploaded anywhere.
 
@@ -33,11 +33,11 @@ listed there.
 
 | System | File | Install / upgrade |
 | --- | --- | --- |
-| Windows | `Tooltracer-<version>-windows-setup.exe` | Run it. Running a newer one upgrades the installed copy in place. |
-| Windows (no install) | `Tooltracer-<version>-windows-portable.zip` | Unzip anywhere and run `Tooltracer.exe`. |
-| macOS (Apple Silicon) | `Tooltracer-<version>-macos-arm64.dmg` | Drag Tooltracer to Applications; choose *Replace* to upgrade. |
-| Debian / Ubuntu | `tooltracer_<version>_amd64.deb` | `sudo apt install ./tooltracer_<version>_amd64.deb` (also upgrades). |
-| Other Linux | `Tooltracer-<version>-linux-x86_64.tar.gz` | Unpack and run `Tooltracer/Tooltracer`. |
+| Windows | `GridfinityCustomBin-<version>-windows-setup.exe` | Run it. Running a newer one upgrades the installed copy in place. |
+| Windows (no install) | `GridfinityCustomBin-<version>-windows-portable.zip` | Unzip anywhere and run `GridfinityCustomBin.exe`. |
+| macOS (Apple Silicon) | `GridfinityCustomBin-<version>-macos-arm64.dmg` | Drag Gridfinity Custom Bin to Applications; choose *Replace* to upgrade. |
+| Debian / Ubuntu | `gridfinity-custom-bin_<version>_amd64.deb` | `sudo apt install ./gridfinity-custom-bin_<version>_amd64.deb` (also upgrades). |
+| Other Linux | `GridfinityCustomBin-<version>-linux-x86_64.tar.gz` | Unpack and run `GridfinityCustomBin/GridfinityCustomBin`. |
 
 **First launch warnings.** The builds are not code-signed, so Windows SmartScreen (*More info → Run anyway*) and
 macOS Gatekeeper (right-click the app → *Open*) warn the first time. macOS and Linux builds are tested automatically
@@ -51,7 +51,7 @@ Prefer to run from source? See [Run from source](#run-from-source).
 ## Quick start
 
 1. Lay your tools flat on a sheet of paper and photograph them from straight above ([tips](#taking-a-good-photo)).
-2. Open Tooltracer, stay on **Quick bin**, and drop the photo onto the window.
+2. Open Gridfinity Custom Bin, stay on **Quick bin**, and drop the photo onto the window.
 3. Pick your paper size and press **Trace tools**.
 4. Open **Layout** to arrange the pockets, then press **Save STL** and slice it for your printer.
 
@@ -61,7 +61,7 @@ That's the whole loop. The rest of this guide covers keeping a library of tools 
 
 ### The four modes
 
-Tooltracer has four modes, selected along the top of the window.
+Gridfinity Custom Bin has four modes, selected along the top of the window.
 
 | Mode | Use it to |
 | --- | --- |
@@ -77,7 +77,7 @@ The photo is shared between Quick bin and Capture tools, so you can trace once a
 Lay tools flat on a sheet, shoot from straight above and as high as is practical: tall tools lean outward in a
 close-up shot and trace oversized.
 
-**Scale reference** (what tells Tooltracer the real size of things):
+**Scale reference** (what tells Gridfinity Custom Bin the real size of things):
 
 - **Plain paper** – Letter, A4, Legal, Tabloid, A3 or a custom size. The sheet's corners set scale and perspective,
   so the whole sheet must be visible against a darker surface.
@@ -193,7 +193,7 @@ uv sync --extra ai
 ```
 
 ```bash
-uv run tooltracer
+uv run gridfinity-custom-bin
 ```
 
 This opens a desktop window (Windows, macOS, Linux). Skip `--extra ai` if you only want classic detection.
@@ -235,7 +235,7 @@ photo ─► rectify ─► segment ─► outlines (mm) ─► library ─► g
 ## Repository layout
 
 ```
-tooltracer/
+gridfinity_custom_bin/
   launcher.py     starts the local server and the desktop window (pywebview) or browser
   server.py       FastAPI app: tracing, library, saved bins, STL
   library.py      the on-disk library and the settings file
@@ -251,7 +251,7 @@ packaging/        PyInstaller spec, Windows (Inno Setup) and Linux (.deb) instal
 docs/images/      README screenshots
 ```
 
-The web UI is a single page with no build step: edit `tooltracer/static/` and reload.
+The web UI is a single page with no build step: edit `gridfinity_custom_bin/static/` and reload.
 
 ## Tests
 
@@ -263,7 +263,7 @@ The source tests cover photo → outline accuracy, bin geometry, the library and
 app can also be tested from the outside:
 
 ```bash
-uv run --group dev python packaging/test_packaged.py --exe dist/Tooltracer/Tooltracer.exe --ai --window
+uv run --group dev python packaging/test_packaged.py --exe dist/GridfinityCustomBin/GridfinityCustomBin.exe --ai --window
 ```
 
 It uploads a synthetic photo with known tool sizes, traces it (classic and AI), saves tools and a bin to a library,
@@ -272,11 +272,11 @@ exports an STL, then opens the real desktop window and checks the UI loaded.
 ## Building the app
 
 ```bash
-uv run --group build pyinstaller packaging/tooltracer.spec --noconfirm
+uv run --group build pyinstaller packaging/gridfinity-custom-bin.spec --noconfirm
 ```
 
 The result is in `dist/`. The Windows installer is then made with [Inno Setup](https://jrsoftware.org/isinfo.php)
-(`iscc /DAppVersion=0.3.0 packaging\windows\tooltracer.iss`), the `.deb` with `packaging/linux/build_deb.sh 0.3.0`.
+(`iscc /DAppVersion=0.3.0 packaging\windows\gridfinity-custom-bin.iss`), the `.deb` with `packaging/linux/build_deb.sh 0.3.0`.
 
 ## Continuous integration and releases
 
@@ -310,7 +310,7 @@ By contributing you agree your contribution is licensed under the same terms as 
 
 # License
 
-Tooltracer is licensed under the **[PolyForm Noncommercial License 1.0.0](LICENSE)**. In plain terms:
+Gridfinity Custom Bin is licensed under the **[PolyForm Noncommercial License 1.0.0](LICENSE)**. In plain terms:
 
 - ✅ **Free for personal use**, including hobby projects, and for printing bins for yourself, friends and family.
 - ✅ **You may fork, modify and share** it, as long as you keep the licence and the `Required Notice` line with it.
@@ -318,7 +318,7 @@ Tooltracer is licensed under the **[PolyForm Noncommercial License 1.0.0](LICENS
   services built on it.
 
 This is a *source-available* licence rather than an OSI-approved "open source" one, because open-source licences
-cannot forbid commercial use. If you want to use Tooltracer commercially, please get in touch via an issue to ask
+cannot forbid commercial use. If you want to use Gridfinity Custom Bin commercially, please get in touch via an issue to ask
 for separate permission. The legal text in [`LICENSE`](LICENSE) is what counts; this summary is only a guide.
 
-Bundled third-party code (three.js, MIT) keeps its own licence in `tooltracer/static/vendor/LICENSE`.
+Bundled third-party code (three.js, MIT) keeps its own licence in `gridfinity_custom_bin/static/vendor/LICENSE`.

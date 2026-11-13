@@ -82,7 +82,7 @@ jobs:
     steps:
       - uses: actions/download-artifact@v8
         with:
-          pattern: tooltracer-*
+          pattern: gridfinity-custom-bin-*
           path: release
           merge-multiple: true
 
@@ -94,7 +94,7 @@ jobs:
           gh release create "v$VERSION" release/* \
             --repo "$GITHUB_REPOSITORY" \
             --target "$GITHUB_SHA" \
-            --title "Tooltracer $VERSION" \
+            --title "Gridfinity Custom Bin $VERSION" \
             --generate-notes $FLAGS
 
       # The installers now live on the release. Remove the copies used to pass them between jobs
@@ -104,7 +104,7 @@ jobs:
         continue-on-error: true
         run: |
           gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts" --paginate \
-            --jq '.artifacts[] | select(.name | startswith("tooltracer-")) | .id' |
+            --jq '.artifacts[] | select(.name | startswith("gridfinity-custom-bin-")) | .id' |
           while read -r id; do
             gh api -X DELETE "repos/$GITHUB_REPOSITORY/actions/artifacts/$id" && echo "deleted artifact $id"
           done

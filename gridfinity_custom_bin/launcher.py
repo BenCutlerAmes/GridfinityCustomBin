@@ -1,4 +1,4 @@
-"""Start Tooltracer: by default as a desktop window, optionally in the browser."""
+"""Start Gridfinity Custom Bin: by default as a desktop window, optionally in the browser."""
 from __future__ import annotations
 
 import argparse
@@ -28,7 +28,7 @@ def _ensure_streams() -> None:
         return
     try:
         server.STATE.cfg_dir.mkdir(parents=True, exist_ok=True)
-        log = open(server.STATE.cfg_dir / "tooltracer.log", "w", encoding="utf-8", buffering=1)
+        log = open(server.STATE.cfg_dir / "gridfinity-custom-bin.log", "w", encoding="utf-8", buffering=1)
     except OSError:
         import os
 
@@ -57,7 +57,7 @@ def run_window(on_ready=None) -> bool:
         return False
     port = _free_port()
     srv = _serve_in_thread(port)
-    window = webview.create_window("Tooltracer", f"http://{HOST}:{port}", width=1320, height=880, min_size=(980, 640))
+    window = webview.create_window("Gridfinity Custom Bin", f"http://{HOST}:{port}", width=1320, height=880, min_size=(980, 640))
     server.STATE.window = window
     try:
         # private_mode=False keeps small UI preferences (last mode) between runs.
@@ -118,8 +118,8 @@ def run_window_test(out_path: str, hold: float = 6.0) -> bool:
 
 
 def main(argv=None):
-    ap = argparse.ArgumentParser(prog="tooltracer", description="Photo-to-Gridfinity tool tracer")
-    ap.add_argument("--version", action="version", version=f"Tooltracer {__version__}")
+    ap = argparse.ArgumentParser(prog="gridfinity-custom-bin", description="Photo-to-Gridfinity tool tracer")
+    ap.add_argument("--version", action="version", version=f"Gridfinity Custom Bin {__version__}")
     ap.add_argument("--browser", action="store_true", help="open in the default browser instead of a desktop window")
     ap.add_argument("--no-browser", action="store_true", help="only run the local server (implies browser mode)")
     ap.add_argument("--port", type=int, default=8765, help="port for browser mode (default 8765)")
@@ -130,7 +130,7 @@ def main(argv=None):
 
     server.init_state(args.config_dir, args.library)
     _ensure_streams()
-    print(f"Tooltracer {__version__}")
+    print(f"Gridfinity Custom Bin {__version__}")
 
     if args.window_test:
         sys.exit(0 if run_window_test(args.window_test) else 1)
@@ -138,7 +138,7 @@ def main(argv=None):
     if not (args.browser or args.no_browser) and run_window():
         return
     url = f"http://{HOST}:{args.port}"
-    print(f"Tooltracer running at {url}  (Ctrl+C to stop)")
+    print(f"Gridfinity Custom Bin running at {url}  (Ctrl+C to stop)")
     if not args.no_browser:
         try:
             webbrowser.open(url)

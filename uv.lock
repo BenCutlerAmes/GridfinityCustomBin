@@ -748,7 +748,7 @@ wheels = [
 ]
 
 [[package]]
-name = "tooltracer"
+name = "gridfinity-custom-bin"
 source = { editable = "." }
 dependencies = [
     { name = "certifi" },

@@ -2,7 +2,7 @@
 import numpy as np
 import pytest
 
-from tooltracer import rectify, segment
+from gridfinity_custom_bin import rectify, segment
 
 from .conftest import assert_tools_match
 

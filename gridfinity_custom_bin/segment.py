@@ -26,7 +26,7 @@ def _model_path() -> Path:
     """Running from source: models/ beside the code. Packaged app: the per-user data folder,
     because the install folder may be read-only and is replaced on upgrade."""
     if getattr(sys, "frozen", False):
-        return Path(platformdirs.user_data_dir("Tooltracer", False)) / "models" / MODEL_NAME
+        return Path(platformdirs.user_data_dir("GridfinityCustomBin", False)) / "models" / MODEL_NAME
     return Path(__file__).resolve().parent.parent / "models" / MODEL_NAME
 
 

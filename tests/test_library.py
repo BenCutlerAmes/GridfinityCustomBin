@@ -4,7 +4,7 @@ import json
 import numpy as np
 import pytest
 
-from tooltracer.library import FORMAT, Library, LibraryError, load_config, save_config
+from gridfinity_custom_bin.library import FORMAT, Library, LibraryError, load_config, save_config
 
 OUTLINE = [[50, 40], [90, 40], [90, 140], [50, 140]]
 

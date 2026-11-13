@@ -1,4 +1,4 @@
-# Contributing to Tooltracer
+# Contributing to Gridfinity Custom Bin
 
 Thanks for helping! This is a small project with one maintainer, so a little structure keeps things moving.
 
@@ -15,10 +15,10 @@ Thanks for helping! This is a small project with one maintainer, so a little str
 You need [uv](https://docs.astral.sh/uv/) and Git.
 
 ```bash
-git clone https://github.com/<your-username>/GridfinityCustomBins.git   # your fork
-cd GridfinityCustomBins
+git clone https://github.com/<your-username>/GridfinityCustomBin.git   # your fork
+cd GridfinityCustomBin
 uv sync --extra ai --group dev
-uv run tooltracer
+uv run gridfinity-custom-bin
 ```
 
 See the [developer guide](README.md#for-developers) for how the code fits together.
@@ -32,7 +32,7 @@ See the [developer guide](README.md#for-developers) for how the code fits togeth
    ```bash
    uv run --group dev pytest
    ```
-5. **Try it in the app** if you touched the UI (`uv run tooltracer`); UI code is plain JS in `tooltracer/static/`
+5. **Try it in the app** if you touched the UI (`uv run gridfinity-custom-bin`); UI code is plain JS in `gridfinity_custom_bin/static/`
    with no build step.
 6. **Commit** with a clear message that says what and why.
 7. **Open a pull request** against `main` and fill in what changed and how you tested it.
@@ -45,7 +45,7 @@ See the [developer guide](README.md#for-developers) for how the code fits togeth
 - Every pull request needs the maintainer's review ([CODEOWNERS](.github/CODEOWNERS)). Expect questions or
   requested changes; push more commits to the same branch and the check re-runs.
 - Only the maintainer merges to `main` and publishes releases. You never need to touch versions:
-  `tooltracer/_version.py` is stamped by the release workflow.
+  `gridfinity_custom_bin/_version.py` is stamped by the release workflow.
 
 ## Style
 
