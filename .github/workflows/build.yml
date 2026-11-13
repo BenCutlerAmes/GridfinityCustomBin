@@ -36,9 +36,9 @@ jobs:
       # Linux runners have no display: give the window test a virtual one.
       XVFB: ${{ matrix.name == 'linux' && 'xvfb-run -a' || '' }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: astral-sh/setup-uv@v6
+      - uses: astral-sh/setup-uv@v7
 
       - name: Linux system libraries (Qt window backend, virtual display)
         if: matrix.name == 'linux'
@@ -156,7 +156,7 @@ jobs:
           mv "dist/tooltracer_${VERSION}_amd64.deb" release/
 
       - name: Upload installers
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: tooltracer-${{ matrix.name }}
           path: release/*
@@ -165,7 +165,7 @@ jobs:
 
       - name: Upload test results (logs, window screenshot)
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: test-output-${{ matrix.name }}
           path: |
