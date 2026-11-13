@@ -1,6 +1,6 @@
 # Runs on pull requests, i.e. before merge: tests the code and proves the Windows, macOS and Linux
 # apps and installers can still be built and work. Nothing is published.
-# The result shows as a check on the pull request; installers are downloadable from the run.
+# The result shows as a check on the pull request. Installers are built and tested but not kept.
 # It re-runs when new commits are pushed to the pull request's branch.
 name: Build check
 

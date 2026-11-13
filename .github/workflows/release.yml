@@ -55,11 +55,15 @@ jobs:
     uses: ./.github/workflows/build.yml
     with:
       version: ${{ needs.prepare.outputs.version }}
+      upload_installers: true
 
   release:
     name: Publish release
     needs: [prepare, build]
     runs-on: ubuntu-latest
+    permissions:
+      contents: write   # create the release
+      actions: write    # delete the hand-off artifacts afterwards
     env:
       VERSION: ${{ needs.prepare.outputs.version }}
       GH_TOKEN: ${{ github.token }}
@@ -81,3 +85,15 @@ jobs:
             --target "$GITHUB_SHA" \
             --title "Tooltracer $VERSION" \
             --generate-notes $FLAGS
+
+      # The installers now live on the release. Remove the copies used to pass them between jobs
+      # so they do not sit in artifact storage.
+      - name: Delete hand-off artifacts
+        if: always()
+        continue-on-error: true
+        run: |
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts" --paginate \
+            --jq '.artifacts[] | select(.name | startswith("tooltracer-")) | .id' |
+          while read -r id; do
+            gh api -X DELETE "repos/$GITHUB_REPOSITORY/actions/artifacts/$id" && echo "deleted artifact $id"
+          done

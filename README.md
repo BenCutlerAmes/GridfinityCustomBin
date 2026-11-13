@@ -43,8 +43,9 @@ release does except publish, so a branch that would break a build is caught befo
 4. builds the installer, installs an older version, upgrades it with the new one, checks the upgrade replaced
    it cleanly, and re-tests the installed copy.
 
-Installers from a run are under the run's *Artifacts* as `tooltracer-<os>`; logs, results and a screenshot of
-the window as `test-output-<os>`. macOS runners are billed at a higher rate on private repositories, so each
+A build check keeps no installers: they are built, tested and discarded, and only a release stores them (on
+the release itself). Logs, results and a screenshot of the window are kept for 3 days under the run's
+*Artifacts* as `test-output-<os>`. macOS runners are billed at a higher rate on private repositories, so each
 run uses a noticeable share of the free Actions minutes.
 
 Run the same tests locally:
