@@ -118,7 +118,7 @@ def run_window_test(out_path: str, hold: float = 6.0) -> bool:
 
 
 def main(argv=None):
-    ap = argparse.ArgumentParser(prog="gridfinity-custom-bin", description="Photo-to-Gridfinity tool tracer")
+    ap = argparse.ArgumentParser(prog="gridfinity-custom-bin", description="Gridfinity Custom Bin: photo to Gridfinity bin")
     ap.add_argument("--version", action="version", version=f"Gridfinity Custom Bin {__version__}")
     ap.add_argument("--browser", action="store_true", help="open in the default browser instead of a desktop window")
     ap.add_argument("--no-browser", action="store_true", help="only run the local server (implies browser mode)")
