@@ -40,6 +40,17 @@ jobs:
           INPUT_VERSION: ${{ inputs.version }}
           GH_TOKEN: ${{ github.token }}
         run: |
+          # Only the repository owner may publish, and only code that is already on main.
+          if [ "$GITHUB_ACTOR" != "$GITHUB_REPOSITORY_OWNER" ]; then
+            echo "::error::Only the repository owner ($GITHUB_REPOSITORY_OWNER) can publish releases."; exit 1
+          fi
+          if [ "$GITHUB_EVENT_NAME" != "push" ] && [ "$GITHUB_REF" != "refs/heads/main" ]; then
+            echo "::error::Releases can only be built from main (run the workflow on the main branch)."; exit 1
+          fi
+          STATUS=$(gh api "repos/$GITHUB_REPOSITORY/compare/main...$GITHUB_SHA" --jq .status)
+          if [ "$STATUS" != "identical" ] && [ "$STATUS" != "behind" ]; then
+            echo "::error::Commit $GITHUB_SHA is not on main (status: $STATUS). Merge it into main first."; exit 1
+          fi
           if [ "$GITHUB_EVENT_NAME" = "push" ]; then V="${GITHUB_REF_NAME#v}"; else V="${INPUT_VERSION#v}"; fi
           if ! echo "$V" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
             echo "::error::Version must look like 1.2.3 (got '$V')."; exit 1

@@ -1,0 +1,6 @@
+# Every change needs review from the maintainer. Together with the branch ruleset
+# (see .github/rulesets/README.md) this keeps main under the owner's control.
+*                    @BenCutlerAmes
+/.github/            @BenCutlerAmes
+/LICENSE             @BenCutlerAmes
+/packaging/          @BenCutlerAmes
