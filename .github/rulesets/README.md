@@ -5,7 +5,7 @@ ready-to-import copies of what the maintainer applies. They also document the in
 
 | Ruleset | What it enforces |
 | --- | --- |
-| `protect-main.json` | `main` cannot be deleted or force-pushed; changes arrive only through a pull request with a code-owner review ([CODEOWNERS](../CODEOWNERS)), resolved conversations and a passing **Build check** on Windows, macOS and Linux. Only the repository admin (the owner) may bypass, and only via a pull request. |
+| `protect-main.json` | `main` cannot be deleted or force-pushed; changes arrive only through a pull request with a code-owner review ([CODEOWNERS](../CODEOWNERS)), resolved conversations and a passing **Build check** on Windows, macOS and Linux. Only the repository admin (the owner) may bypass: they can push straight to `main` and merge their own pull requests (GitHub never lets you approve your own). |
 | `protect-release-tags.json` | `v*` tags can only be created, moved or deleted by the repository admin, so nobody else can trigger or fake a release. |
 
 ## Apply them (maintainer, once)
@@ -14,12 +14,21 @@ On GitHub: **Settings → Rules → Rulesets → New ruleset → Import a rulese
 The Build check names (`build / windows`, `build / macos`, `build / linux`) only become selectable after the
 check has run once on a pull request.
 
-## Also set (Settings)
+## Also set (Settings) — applied
 
-- **Actions → General → Fork pull request workflows**: *Require approval for all outside collaborators*.
-- **Actions → General → Workflow permissions**: *Read repository contents* (workflows ask for more where needed).
+- **General → Pull Requests**: merge commits off (main needs a linear history); squash and rebase on;
+  *Automatically delete head branches* on.
+- **Actions → General → Fork pull request workflows**: *Require approval for all external contributors*.
+- **Actions → General → Workflow permissions**: *Read repository contents*, and Actions may not approve pull requests.
+- **Code security**: secret scanning with push protection, Dependabot alerts and security updates, and
+  *Private vulnerability reporting* (see [SECURITY.md](../SECURITY.md)).
 - **Collaborators**: add nobody with Write access you do not trust; forks and pull requests need none.
-- **Code security**: enable *Private vulnerability reporting* and *Dependabot alerts*.
+
+## Workflows
+
+- Third-party actions are pinned to exact commits (the version is in a comment). [dependabot.yml](../dependabot.yml)
+  opens a weekly pull request to move the pins forward.
+- The build job is read-only even when the release workflow calls it; only the publish job can write.
 
 ## Releases
 

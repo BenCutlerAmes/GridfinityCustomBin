@@ -25,6 +25,9 @@ jobs:
     name: ${{ matrix.name }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 45
+    # Read-only even when a release calls this with write access: the build never needs to write.
+    permissions:
+      contents: read
     strategy:
       fail-fast: false
       matrix:
@@ -41,9 +44,9 @@ jobs:
       # Linux runners have no display: give the window test a virtual one.
       XVFB: ${{ matrix.name == 'linux' && 'xvfb-run -a' || '' }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: astral-sh/setup-uv@v7
+      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
 
       - name: Linux system libraries (Qt window backend, virtual display)
         if: matrix.name == 'linux'
@@ -164,7 +167,7 @@ jobs:
       # Build checks do not store installers at all (artifact storage is a limited allowance).
       - name: Hand installers to the release job
         if: inputs.upload_installers
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: gridfinity-custom-bin-${{ matrix.name }}
           path: release/*
@@ -174,7 +177,7 @@ jobs:
 
       - name: Upload test results (logs, window screenshot)
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: test-output-${{ matrix.name }}
           path: |
