@@ -122,7 +122,7 @@ jobs:
           DMG="release/GridfinityCustomBin-$VERSION-macos-$(uname -m).dmg"
           hdiutil create -volname "Gridfinity Custom Bin $VERSION" -srcfolder dmgroot -ov -format UDZO "$DMG"
 
-          MNT="$RUNNER_TEMP/tt-dmg"; APPS="$RUNNER_TEMP/Applications"
+          MNT="$RUNNER_TEMP/gcb-dmg"; APPS="$RUNNER_TEMP/Applications"
           mkdir -p "$MNT" "$APPS/GridfinityCustomBin.app/Contents"
           touch "$APPS/GridfinityCustomBin.app/Contents/stale-from-old-version.txt"   # stands in for a previous install
           hdiutil attach "$DMG" -mountpoint "$MNT" -nobrowse -quiet

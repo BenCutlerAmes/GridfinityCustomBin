@@ -1,7 +1,7 @@
 [project]
 name = "gridfinity-custom-bin"
 dynamic = ["version"]
-description = "Local photo-to-Gridfinity tool tracer: photograph tools on paper, get a printable bin with tool-shaped pockets."
+description = "Gridfinity Custom Bin: photograph tools on paper, get a printable bin with tool-shaped pockets."
 requires-python = ">=3.12,<3.13"
 dependencies = [
     "fastapi>=0.115",
