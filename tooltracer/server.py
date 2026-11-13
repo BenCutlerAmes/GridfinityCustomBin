@@ -20,7 +20,7 @@ from fastapi.staticfiles import StaticFiles
 from PIL import Image, ImageOps
 from pydantic import BaseModel, Field
 
-from . import gridfinity, rectify, segment
+from . import __version__, gridfinity, rectify, segment
 from .library import Library, LibraryError, config_dir, default_library_path, load_config, save_config
 
 try:
@@ -105,6 +105,7 @@ def index():
 @app.get("/api/config")
 def config():
     return {
+        "version": __version__,
         "papers": {k: list(v) for k, v in rectify.PAPER_SIZES_MM.items()},
         "ai_installed": importlib.util.find_spec("onnxruntime") is not None,
         "ai_model_downloaded": segment.MODEL_PATH.exists(),
@@ -113,6 +114,45 @@ def config():
         "native": STATE.window is not None,
         "library": STATE.library.summary() if STATE.library else None,
         "default_library_path": str(default_library_path()),
+    }
+
+
+@app.get("/api/diagnostics")
+def diagnostics():
+    """Load every native library the app depends on and report versions.
+
+    Used by the build tests to prove a packaged app is complete, and handy in bug reports."""
+    import manifold3d
+    import shapely
+
+    libs = {
+        "opencv": cv2.__version__,
+        "numpy": np.__version__,
+        "shapely": shapely.__version__,
+        "manifold3d": "ok" if manifold3d.Manifold.cube((1, 1, 1)).volume() > 0 else None,
+        "pillow_heif": None,
+        "onnxruntime": None,
+    }
+    try:
+        import pillow_heif as ph
+
+        libs["pillow_heif"] = ph.__version__
+    except Exception as e:
+        libs["pillow_heif_error"] = repr(e)
+    try:
+        import onnxruntime as ort
+
+        libs["onnxruntime"] = ort.__version__
+        libs["onnxruntime_providers"] = ort.get_available_providers()
+    except Exception as e:
+        libs["onnxruntime_error"] = repr(e)
+    return {
+        "version": __version__,
+        "packaged": bool(getattr(sys, "frozen", False)),
+        "platform": sys.platform,
+        "python": sys.version.split()[0],
+        "libraries": libs,
+        "model_path": str(segment.MODEL_PATH),
     }
 
 

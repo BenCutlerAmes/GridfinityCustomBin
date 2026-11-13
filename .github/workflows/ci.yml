@@ -1,0 +1,22 @@
+# Runs on pull requests, i.e. before merge: tests the code and proves the Windows, macOS and Linux
+# apps and installers can still be built and work. Nothing is published.
+# The result shows as a check on the pull request. Installers are built and tested but not kept.
+# It re-runs when new commits are pushed to the pull request's branch.
+name: Build check
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-check-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true   # a newer push to the same pull request replaces the run in progress
+
+jobs:
+  build:
+    uses: ./.github/workflows/build.yml
+    with:
+      version: 0.0.${{ github.run_number }}

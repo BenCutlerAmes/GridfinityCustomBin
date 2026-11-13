@@ -106,8 +106,23 @@ class Library:
             marker = self.root / "library.json"
             if not marker.exists():
                 _write_json(marker, {"app": "tooltracer", "format": FORMAT, "created": _now()})
+            else:
+                self._check_format(marker)
         except OSError as e:
             raise LibraryError(f"Cannot use that folder: {e.strerror or e}") from e
+
+    @staticmethod
+    def _check_format(marker: Path) -> None:
+        """Upgrades keep the library. An older app must not write into a library that a newer
+        app has already converted to a later format; bump FORMAT and migrate here when it changes."""
+        try:
+            found = int(_read_json(marker).get("format", 1))
+        except Exception:
+            return  # unreadable marker: treat as a current-format library
+        if found > FORMAT:
+            raise LibraryError(
+                "This library was last used by a newer version of Tooltracer. Install the latest version to open it."
+            )
 
     # tools
 

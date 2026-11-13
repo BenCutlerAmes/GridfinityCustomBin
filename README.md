@@ -3,7 +3,71 @@
 Photograph tools on a sheet of paper, build up a library of their outlines, and generate 3D-printable
 Gridfinity bins with tool-shaped pockets. Everything runs on your machine; nothing is uploaded anywhere.
 
-## Run
+## Install
+
+Download the latest build for your system from the repository's **Releases** page. Every past version stays
+listed there.
+
+| System | File | Install / upgrade |
+| --- | --- | --- |
+| Windows | `Tooltracer-<version>-windows-setup.exe` | Run it. Running a newer one upgrades the installed copy in place. |
+| Windows (no install) | `Tooltracer-<version>-windows-portable.zip` | Unzip anywhere and run `Tooltracer.exe`. |
+| macOS (Apple Silicon) | `Tooltracer-<version>-macos-arm64.dmg` | Drag Tooltracer to Applications; choose *Replace* to upgrade. |
+| Debian / Ubuntu | `tooltracer_<version>_amd64.deb` | `sudo apt install ./tooltracer_<version>_amd64.deb` (also upgrades). |
+| Other Linux | `Tooltracer-<version>-linux-x86_64.tar.gz` | Unpack and run `Tooltracer/Tooltracer`. |
+
+Upgrading never touches your data: the tool library is in the folder you chose and settings are in your user
+profile, both outside the program folder. The builds are not code-signed, so Windows SmartScreen
+("More info → Run anyway") and macOS Gatekeeper (right-click the app → Open) warn on first launch.
+
+## Releasing a new version
+
+Releases are built by GitHub Actions for Windows, macOS and Linux, on demand:
+
+1. On GitHub open **Actions → Release builds → Run workflow**.
+2. Enter the version (e.g. `0.3.0`) and run it. Pushing a tag does the same: `git tag v0.3.0 && git push origin v0.3.0`.
+
+The workflow builds and tests each app (see below) and only if all three pass publishes a GitHub Release
+`v<version>` with all the files. A version that already exists is refused rather than overwritten.
+
+## Automated tests
+
+Every pull request runs **Build check** (again on each new commit pushed to it), which does everything a
+release does except publish, so a branch that would break a build is caught before it is merged. On Windows, macOS and Linux it:
+
+1. runs the source tests (`tests/`): photo → outline accuracy, bin geometry, the library, the HTTP API;
+2. builds the app;
+3. tests the built app from the outside (`packaging/test_packaged.py`): uploads a synthetic photo with
+   known tool sizes, traces it (classic and AI), saves tools and a bin to a library, exports an STL, then opens
+   the real desktop window and checks the UI loaded in it;
+4. builds the installer, installs an older version, upgrades it with the new one, checks the upgrade replaced
+   it cleanly, and re-tests the installed copy.
+
+A build check keeps no installers: they are built, tested and discarded, and only a release stores them (on
+the release itself). Logs, results and a screenshot of the window are kept for 3 days under the run's
+*Artifacts* as `test-output-<os>`. macOS runners are billed at a higher rate on private repositories, so each
+run uses a noticeable share of the free Actions minutes.
+
+Run the same tests locally:
+
+```bash
+uv run --group dev pytest
+```
+
+```bash
+uv run --group dev python packaging/test_packaged.py --exe dist/Tooltracer/Tooltracer.exe --ai --window
+```
+
+To build the app for your own system only:
+
+```bash
+uv run --group build pyinstaller packaging/tooltracer.spec --noconfirm
+```
+
+The result is in `dist/`. The Windows installer is then made with Inno Setup
+(`iscc /DAppVersion=0.3.0 packaging\windows\tooltracer.iss`), the `.deb` with `packaging/linux/build_deb.sh 0.3.0`.
+
+## Run from source
 
 ```bash
 uv sync --extra ai
@@ -98,3 +162,6 @@ Generates a synthetic photo with known-size tools (add `--markers` for the marke
 - `tooltracer/segment.py` – classic and AI masks → smoothed outlines in mm
 - `tooltracer/gridfinity.py` – bin solid (manifold3d) and STL export
 - `tooltracer/static/` – the UI (three.js vendored, MIT)
+- `packaging/` – PyInstaller spec and the Windows / Linux installer scripts
+- `tests/` – source tests; `packaging/test_packaged.py` – tests for a built or installed app
+- `.github/workflows/` – `build.yml` (shared build + tests), `ci.yml` (branch build check), `release.yml` (manual release)
