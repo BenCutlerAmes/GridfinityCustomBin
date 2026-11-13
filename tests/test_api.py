@@ -4,7 +4,7 @@ import json
 import pytest
 from fastapi.testclient import TestClient
 
-from tooltracer import __version__, server
+from gridfinity_custom_bin import __version__, server
 
 from .conftest import assert_tools_match
 
@@ -30,7 +30,7 @@ def trace(client, photo_jpeg, **opts):
 def test_config_and_ui_are_served(client):
     cfg = client.get("/api/config").json()
     assert cfg["version"] == __version__ and cfg["library"] is None and cfg["native"] is False
-    assert "Tooltracer" in client.get("/").text
+    assert "Gridfinity Custom Bin" in client.get("/").text
     for path in ("/static/app.js", "/static/style.css", "/static/vendor/three.module.min.js"):
         assert client.get(path).status_code == 200
     assert client.get("/markers?paper=a4").status_code == 200

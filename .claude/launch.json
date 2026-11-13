@@ -2,9 +2,9 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "tooltracer",
+      "name": "gridfinity-custom-bin",
       "runtimeExecutable": "uv",
-      "runtimeArgs": ["run", "tooltracer", "--no-browser", "--config-dir", "out/dev-config"],
+      "runtimeArgs": ["run", "gridfinity-custom-bin", "--no-browser", "--config-dir", "out/dev-config"],
       "port": 8765
     }
   ]

@@ -72,7 +72,7 @@ def clean_tags(tags) -> list[str]:
 
 def config_dir(override: str | None = None) -> Path:
     # Absolute: the embedded webview refuses a relative storage folder.
-    return Path(override).resolve() if override else Path(platformdirs.user_config_dir("Tooltracer", False))
+    return Path(override).resolve() if override else Path(platformdirs.user_config_dir("GridfinityCustomBin", False))
 
 
 def load_config(cfg_dir: Path) -> dict:
@@ -89,7 +89,7 @@ def save_config(cfg_dir: Path, cfg: dict) -> None:
 
 def default_library_path() -> Path:
     docs = Path.home() / "Documents"
-    return (docs if docs.is_dir() else Path.home()) / "Tooltracer Library"
+    return (docs if docs.is_dir() else Path.home()) / "Gridfinity Custom Bin Library"
 
 
 # ---------- library ----------
@@ -105,7 +105,7 @@ class Library:
             (self.root / "bins").mkdir(parents=True, exist_ok=True)
             marker = self.root / "library.json"
             if not marker.exists():
-                _write_json(marker, {"app": "tooltracer", "format": FORMAT, "created": _now()})
+                _write_json(marker, {"app": "gridfinity-custom-bin", "format": FORMAT, "created": _now()})
             else:
                 self._check_format(marker)
         except OSError as e:
@@ -121,7 +121,7 @@ class Library:
             return  # unreadable marker: treat as a current-format library
         if found > FORMAT:
             raise LibraryError(
-                "This library was last used by a newer version of Tooltracer. Install the latest version to open it."
+                "This library was last used by a newer version of Gridfinity Custom Bin. Install the latest version to open it."
             )
 
     # tools

@@ -1,6 +1,6 @@
-"""Test a built Tooltracer app (the PyInstaller output or an installed copy) from the outside.
+"""Test a built Gridfinity Custom Bin app (the PyInstaller output or an installed copy) from the outside.
 
-    uv run python packaging/test_packaged.py --exe dist/Tooltracer/Tooltracer.exe --version 0.3.0 --ai --window
+    uv run python packaging/test_packaged.py --exe dist/GridfinityCustomBin/GridfinityCustomBin.exe --version 0.3.0 --ai --window
 
 Headless part: starts the app's server and drives the real flow over HTTP - upload a synthetic
 photo with known tool sizes, trace it, save tools to a library, save a bin, export an STL.
@@ -71,7 +71,7 @@ def stop(proc: subprocess.Popen) -> None:
 
 
 def show_log(cfg: Path) -> None:
-    f = cfg / "tooltracer.log"
+    f = cfg / "gridfinity-custom-bin.log"
     if f.exists():
         log(f"--- {f} ---\n{f.read_text(errors='replace')[-4000:]}\n---")
 
@@ -197,7 +197,7 @@ def window(exe: str, version: str | None, out: Path) -> None:
 
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--exe", required=True, help="path to the built Tooltracer executable")
+    ap.add_argument("--exe", required=True, help="path to the built Gridfinity Custom Bin executable")
     ap.add_argument("--version", help="version the app must report")
     ap.add_argument("--out", default="test-output", help="folder for results, logs and the screenshot")
     ap.add_argument("--ai", action="store_true")

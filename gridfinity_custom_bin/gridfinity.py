@@ -202,7 +202,7 @@ def to_stl(solid: m3.Manifold) -> bytes:
     normals = normals / np.where(length == 0, 1, length)
     rec = np.zeros(len(tris), dtype=[("n", "<f4", 3), ("v", "<f4", (3, 3)), ("attr", "<u2")])
     rec["n"], rec["v"] = normals, tris
-    return b"Tooltracer Gridfinity bin".ljust(80, b" ") + np.uint32(len(tris)).tobytes() + rec.tobytes()
+    return b"Gridfinity Custom Bin STL".ljust(80, b" ") + np.uint32(len(tris)).tobytes() + rec.tobytes()
 
 
 def fit_grid(extent_mm: float, clearance: float) -> int:

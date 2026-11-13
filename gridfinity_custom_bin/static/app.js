@@ -154,7 +154,7 @@ async function setMode(mode, { force = false } = {}) {
   if (state.mode === 'build') await flushBinSave();
   wsOf(state.mode).settings = readSettings();
   state.mode = mode;
-  try { localStorage.setItem('tooltracer.mode', mode); } catch {}
+  try { localStorage.setItem('gridfinity-custom-bin.mode', mode); } catch {}
 
   document.querySelectorAll('#modes button').forEach((b) => b.classList.toggle('on', b.dataset.mode === mode));
   document.querySelectorAll('[data-modes]').forEach((e) => e.classList.toggle('mode-off', !e.dataset.modes.split(' ').includes(mode)));
@@ -1061,7 +1061,7 @@ bindSeg('method', (v) => { state.method = v; refreshConfig(); });
 (async function start() {
   await refreshConfig();
   let mode = 'quick';
-  try { mode = localStorage.getItem('tooltracer.mode') || 'quick'; } catch {}
+  try { mode = localStorage.getItem('gridfinity-custom-bin.mode') || 'quick'; } catch {}
   if (!['quick', 'capture', 'library', 'build'].includes(mode) || (NEEDS_LIBRARY.includes(mode) && !state.cfg?.library)) mode = 'quick';
   await setMode(mode, { force: true });
 })();

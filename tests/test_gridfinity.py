@@ -2,7 +2,7 @@
 import manifold3d as m3
 import pytest
 
-from tooltracer import gridfinity as G
+from gridfinity_custom_bin import gridfinity as G
 
 SQUARE = [[20, 20], [60, 20], [60, 50], [20, 50]]
 

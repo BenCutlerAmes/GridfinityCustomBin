@@ -29,10 +29,10 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { name: windows, os: windows-latest, exe: "dist/Tooltracer/Tooltracer.exe" }
-          - { name: macos, os: macos-latest, exe: "dist/Tooltracer.app/Contents/MacOS/Tooltracer" }
+          - { name: windows, os: windows-latest, exe: "dist/GridfinityCustomBin/GridfinityCustomBin.exe" }
+          - { name: macos, os: macos-latest, exe: "dist/GridfinityCustomBin.app/Contents/MacOS/GridfinityCustomBin" }
           # An older Ubuntu so the build runs on more Linux versions (glibc is forward-compatible only).
-          - { name: linux, os: ubuntu-22.04, exe: "dist/Tooltracer/Tooltracer" }
+          - { name: linux, os: ubuntu-22.04, exe: "dist/GridfinityCustomBin/GridfinityCustomBin" }
     defaults:
       run:
         shell: bash
@@ -54,7 +54,7 @@ jobs:
             libxcomposite1 libxdamage1 libxrandr2 libxtst6 libxkbfile1 xvfb imagemagick
 
       - name: Stamp version
-        run: echo "__version__ = \"$VERSION\"" > tooltracer/_version.py
+        run: echo "__version__ = \"$VERSION\"" > gridfinity_custom_bin/_version.py
 
       - name: Install dependencies
         run: uv sync --extra ai --group build --group dev
@@ -63,7 +63,7 @@ jobs:
         run: uv run --no-sync pytest -q
 
       - name: Build app
-        run: uv run --no-sync pyinstaller packaging/tooltracer.spec --noconfirm
+        run: uv run --no-sync pyinstaller packaging/gridfinity-custom-bin.spec --noconfirm
 
       - name: Test the built app (API flow, AI tracing, desktop window)
         run: |
@@ -84,32 +84,32 @@ jobs:
           $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
           if (-not (Test-Path $iscc)) { choco install innosetup -y --no-progress }
 
-          & $iscc "/DAppVersion=$env:VERSION" packaging\windows\tooltracer.iss
+          & $iscc "/DAppVersion=$env:VERSION" packaging\windows\gridfinity-custom-bin.iss
           Check ($LASTEXITCODE -eq 0) "installer compiles"
           # The same app wrapped as an older version, to upgrade from.
-          & $iscc "/DAppVersion=0.0.0" "/O$env:RUNNER_TEMP\old" "/FTooltracer-old-setup" packaging\windows\tooltracer.iss
+          & $iscc "/DAppVersion=0.0.0" "/O$env:RUNNER_TEMP\old" "/FGridfinityCustomBin-old-setup" packaging\windows\gridfinity-custom-bin.iss
           Check ($LASTEXITCODE -eq 0) "older-version installer compiles"
 
-          $dir = "$env:RUNNER_TEMP\Tooltracer Install"
-          Install "$env:RUNNER_TEMP\old\Tooltracer-old-setup.exe" @("/DIR=`"$dir`"")
-          Check (Test-Path "$dir\Tooltracer.exe") "old version installed"
+          $dir = "$env:RUNNER_TEMP\GridfinityCustomBin Install"
+          Install "$env:RUNNER_TEMP\old\GridfinityCustomBin-old-setup.exe" @("/DIR=`"$dir`"")
+          Check (Test-Path "$dir\GridfinityCustomBin.exe") "old version installed"
           Set-Content "$dir\_internal\stale-from-old-version.txt" "x"
 
           # No /DIR this time: the new installer must find the existing install by itself.
-          Install "dist\Tooltracer-$env:VERSION-windows-setup.exe" @()
-          Check (Test-Path "$dir\Tooltracer.exe") "upgrade went into the existing install folder"
+          Install "dist\GridfinityCustomBin-$env:VERSION-windows-setup.exe" @()
+          Check (Test-Path "$dir\GridfinityCustomBin.exe") "upgrade went into the existing install folder"
           Check (-not (Test-Path "$dir\_internal\stale-from-old-version.txt")) "upgrade removed the old version's files"
           $entries = @(Get-ChildItem "HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall" |
-            Where-Object { $_.GetValue("DisplayName") -like "Tooltracer*" })
-          Check ($entries.Count -eq 1) "exactly one Tooltracer entry in Installed apps (found $($entries.Count))"
+            Where-Object { $_.GetValue("DisplayName") -like "Gridfinity Custom Bin*" })
+          Check ($entries.Count -eq 1) "exactly one Gridfinity Custom Bin entry in Installed apps (found $($entries.Count))"
           Check ($entries[0].GetValue("DisplayVersion") -eq $env:VERSION) "installed version is $env:VERSION (got $($entries[0].GetValue('DisplayVersion')))"
 
-          uv run --no-sync python packaging/test_packaged.py --exe "$dir\Tooltracer.exe" --version $env:VERSION --out test-output/installed
+          uv run --no-sync python packaging/test_packaged.py --exe "$dir\GridfinityCustomBin.exe" --version $env:VERSION --out test-output/installed
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-          Compress-Archive -Path dist\Tooltracer -DestinationPath "dist\Tooltracer-$env:VERSION-windows-portable.zip"
+          Compress-Archive -Path dist\GridfinityCustomBin -DestinationPath "dist\GridfinityCustomBin-$env:VERSION-windows-portable.zip"
           New-Item -ItemType Directory release | Out-Null
-          Move-Item "dist\Tooltracer-$env:VERSION-windows-setup.exe", "dist\Tooltracer-$env:VERSION-windows-portable.zip" release\
+          Move-Item "dist\GridfinityCustomBin-$env:VERSION-windows-setup.exe", "dist\GridfinityCustomBin-$env:VERSION-windows-portable.zip" release\
 
       # ---------- macOS: disk image, install by copying to Applications, replace to upgrade ----------
       - name: Package and test disk image (macOS)
@@ -117,25 +117,25 @@ jobs:
         run: |
           check() { if "$@"; then echo "  ok  $*"; else echo "::error::failed: $*"; exit 1; fi; }
           mkdir -p dmgroot release
-          cp -R dist/Tooltracer.app dmgroot/
+          cp -R dist/GridfinityCustomBin.app dmgroot/
           ln -s /Applications dmgroot/Applications
-          DMG="release/Tooltracer-$VERSION-macos-$(uname -m).dmg"
-          hdiutil create -volname "Tooltracer $VERSION" -srcfolder dmgroot -ov -format UDZO "$DMG"
+          DMG="release/GridfinityCustomBin-$VERSION-macos-$(uname -m).dmg"
+          hdiutil create -volname "Gridfinity Custom Bin $VERSION" -srcfolder dmgroot -ov -format UDZO "$DMG"
 
           MNT="$RUNNER_TEMP/tt-dmg"; APPS="$RUNNER_TEMP/Applications"
-          mkdir -p "$MNT" "$APPS/Tooltracer.app/Contents"
-          touch "$APPS/Tooltracer.app/Contents/stale-from-old-version.txt"   # stands in for a previous install
+          mkdir -p "$MNT" "$APPS/GridfinityCustomBin.app/Contents"
+          touch "$APPS/GridfinityCustomBin.app/Contents/stale-from-old-version.txt"   # stands in for a previous install
           hdiutil attach "$DMG" -mountpoint "$MNT" -nobrowse -quiet
-          check test -d "$MNT/Tooltracer.app"
+          check test -d "$MNT/GridfinityCustomBin.app"
           check test -L "$MNT/Applications"
-          rm -rf "$APPS/Tooltracer.app" && cp -R "$MNT/Tooltracer.app" "$APPS/"   # what Finder's "Replace" does
+          rm -rf "$APPS/GridfinityCustomBin.app" && cp -R "$MNT/GridfinityCustomBin.app" "$APPS/"   # what Finder's "Replace" does
           hdiutil detach "$MNT" -quiet
-          check test ! -e "$APPS/Tooltracer.app/Contents/stale-from-old-version.txt"
-          PLIST_VERSION=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$APPS/Tooltracer.app/Contents/Info.plist")
+          check test ! -e "$APPS/GridfinityCustomBin.app/Contents/stale-from-old-version.txt"
+          PLIST_VERSION=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$APPS/GridfinityCustomBin.app/Contents/Info.plist")
           check test "$PLIST_VERSION" = "$VERSION"
-          codesign --verify --deep "$APPS/Tooltracer.app" || echo "::warning::App is not validly ad-hoc signed; Apple Silicon Macs may refuse to open it."
+          codesign --verify --deep "$APPS/GridfinityCustomBin.app" || echo "::warning::App is not validly ad-hoc signed; Apple Silicon Macs may refuse to open it."
 
-          uv run --no-sync python packaging/test_packaged.py --exe "$APPS/Tooltracer.app/Contents/MacOS/Tooltracer" \
+          uv run --no-sync python packaging/test_packaged.py --exe "$APPS/GridfinityCustomBin.app/Contents/MacOS/GridfinityCustomBin" \
             --version "$VERSION" --out test-output/installed
 
       # ---------- Linux: .deb, package upgrade over an older install ----------
@@ -144,21 +144,21 @@ jobs:
         run: |
           check() { if "$@"; then echo "  ok  $*"; else echo "::error::failed: $*"; exit 1; fi; }
           mkdir -p release
-          tar -C dist -czf "release/Tooltracer-$VERSION-linux-x86_64.tar.gz" Tooltracer
+          tar -C dist -czf "release/GridfinityCustomBin-$VERSION-linux-x86_64.tar.gz" GridfinityCustomBin
           bash packaging/linux/build_deb.sh 0.0.0      # the same app as an older version, to upgrade from
           bash packaging/linux/build_deb.sh "$VERSION"
 
-          sudo apt-get install -y "./dist/tooltracer_0.0.0_amd64.deb"
-          check test "$(dpkg-query -W -f='${Version}' tooltracer)" = "0.0.0"
-          sudo apt-get install -y "./dist/tooltracer_${VERSION}_amd64.deb"
-          check test "$(dpkg-query -W -f='${Version}' tooltracer)" = "$VERSION"
-          check test "$(dpkg-query -W -f='${Status}' tooltracer)" = "install ok installed"
-          check test -x /usr/bin/tooltracer
-          check test -f /usr/share/applications/tooltracer.desktop
+          sudo apt-get install -y "./dist/gridfinity-custom-bin_0.0.0_amd64.deb"
+          check test "$(dpkg-query -W -f='${Version}' gridfinity-custom-bin)" = "0.0.0"
+          sudo apt-get install -y "./dist/gridfinity-custom-bin_${VERSION}_amd64.deb"
+          check test "$(dpkg-query -W -f='${Version}' gridfinity-custom-bin)" = "$VERSION"
+          check test "$(dpkg-query -W -f='${Status}' gridfinity-custom-bin)" = "install ok installed"
+          check test -x /usr/bin/gridfinity-custom-bin
+          check test -f /usr/share/applications/gridfinity-custom-bin.desktop
 
-          uv run --no-sync python packaging/test_packaged.py --exe /opt/tooltracer/Tooltracer \
+          uv run --no-sync python packaging/test_packaged.py --exe /opt/gridfinity-custom-bin/GridfinityCustomBin \
             --version "$VERSION" --out test-output/installed
-          mv "dist/tooltracer_${VERSION}_amd64.deb" release/
+          mv "dist/gridfinity-custom-bin_${VERSION}_amd64.deb" release/
 
       # Only for a release, and only as a hand-off to the publish job, which deletes them again.
       # Build checks do not store installers at all (artifact storage is a limited allowance).
@@ -166,7 +166,7 @@ jobs:
         if: inputs.upload_installers
         uses: actions/upload-artifact@v7
         with:
-          name: tooltracer-${{ matrix.name }}
+          name: gridfinity-custom-bin-${{ matrix.name }}
           path: release/*
           if-no-files-found: error
           retention-days: 1
